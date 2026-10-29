@@ -1,0 +1,58 @@
+[
+  {
+    "id": "indication",
+    "question": "What is CAMZYOS approved for in Germany?",
+    "reference": "CAMZYOS is indicated for the treatment of symptomatic (New York Heart Association, NYHA, class II-III) obstructive hypertrophic cardiomyopathy (oHCM) in adult patients (see section 5.1).",
+    "reference_ids": [
+      "eu_smpc:9132b2e8e8aaa163:c72eb750:1"
+    ],
+    "source_version": "eu_smpc:9132b2e8e8aaa163:c72eb750",
+    "pages": [
+      2,
+      3
+    ],
+    "reference_status": "Source-checked prototype excerpt; independent clinical review pending."
+  },
+  {
+    "id": "ingredient",
+    "question": "What active substance does CAMZYOS contain?",
+    "reference": "Each hard capsule contains 2.5 mg of mavacamten.",
+    "reference_ids": [
+      "eu_smpc:9132b2e8e8aaa163:c72eb750:0"
+    ],
+    "source_version": "eu_smpc:9132b2e8e8aaa163:c72eb750",
+    "pages": [
+      2,
+      2
+    ],
+    "reference_status": "Source-checked prototype excerpt; independent clinical review pending."
+  },
+  {
+    "id": "administration",
+    "question": "How is CAMZYOS administered according to the product information?",
+    "reference": "For oral use. Treatment should be taken once daily with or without meals at about the same time each day. The capsule should be swallowed whole with water.",
+    "reference_ids": [
+      "eu_smpc:9132b2e8e8aaa163:c72eb750:3"
+    ],
+    "source_version": "eu_smpc:9132b2e8e8aaa163:c72eb750",
+    "pages": [
+      8,
+      8
+    ],
+    "reference_status": "Source-checked prototype excerpt; independent clinical review pending."
+  },
+  {
+    "id": "storage",
+    "question": "Does CAMZYOS require special storage conditions?",
+    "reference": "This medicinal product does not require any special storage conditions.",
+    "reference_ids": [
+      "eu_smpc:9132b2e8e8aaa163:c72eb750:18"
+    ],
+    "source_version": "eu_smpc:9132b2e8e8aaa163:c72eb750",
+    "pages": [
+      23,
+      24
+    ],
+    "reference_status": "Source-checked prototype excerpt; independent clinical review pending."
+  }
+]

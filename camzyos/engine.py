@@ -7,7 +7,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field, create_model
 
 from camzyos import graph, profiles, pubmed
-from camzyos.retrieval import retrieve
+from camzyos.retrieval import RetrievalNotReady, require_index, retrieve
 
 REASONS = {
     "off_label": "This asks about use outside the authorised scope. Medical Information can help.",
@@ -200,12 +200,12 @@ def ask(cfg, store, tables, email, question, history=None, persist=False, search
     if route:
         return handoff(question, route, ctx, history)
     if not cfg["api_key"]:
-        evidence, backend, warnings = retrieve(cfg, store, question, account)
         return {"decision": "setup", "answer": "Add OPENAI_API_KEY to .env to enable answers. "
-                "These are retrieved passages only; no clinical answer has been generated.",
-                "citations": evidence, "context_used": ctx, "limitations": [], "warnings": warnings,
-                "retrieval_backend": backend, "handoff": None}
+                "Complete document setup before chatting; no clinical answer has been generated.",
+                "citations": [], "context_used": {}, "limitations": [], "warnings": [], "handoff": None}
     try:
+        if mode != "generic":
+            require_index(cfg, store.chunks(account))
         gap_rows = tables.get("Evidence_Gaps", [])
         decision = parse(cfg, Decision, CLASSIFY, {"question": question, "conversation": history[-6:],
                                                   "DATASET_GAPS": gap_rows})
@@ -235,6 +235,8 @@ def ask(cfg, store, tables, email, question, history=None, persist=False, search
                     ctx[f"memory.{item['uuid']}"] = item["fact"]
             except Exception as exc:
                 warnings.append(f"Graphiti unavailable ({type(exc).__name__}); using supplied profile/history.")
+        retrieval_trace = {"retrieved_evidence": evidence, "retrieval_query": decision.retrieval_query,
+                           "retrieval_backend": backend}
         if not evidence:
             result = handoff(question, "insufficient", ctx, history)
             result.update(warnings=warnings, discoveries=discoveries)
@@ -245,7 +247,7 @@ def ask(cfg, store, tables, email, question, history=None, persist=False, search
             answer = parse(cfg, Answer, GENERATE, payload)
             if answer.insufficient:
                 result = handoff(question, "insufficient", ctx, history)
-                result.update(warnings=warnings, discoveries=discoveries, evidence_gaps=gaps)
+                result.update(warnings=warnings, discoveries=discoveries, evidence_gaps=gaps, **retrieval_trace)
                 return result
             reason = "Use only allowed EVIDENCE IDs for claims and CONTEXT keys for personal facts."
             if validate_ids(answer, evidence, ctx):
@@ -258,6 +260,7 @@ def ask(cfg, store, tables, email, question, history=None, persist=False, search
         else:
             result = handoff(question, "validation", ctx, history)
             result["warnings"] = warnings + ["The generated answer failed the evidence/policy check."]
+            result.update(retrieval_trace)
             return result
         ids = list(dict.fromkeys(cid for claim in answer.claims for cid in claim.evidence_ids))
         citations = [next(e for e in evidence if e["id"] == cid) for cid in ids]
@@ -270,6 +273,7 @@ def ask(cfg, store, tables, email, question, history=None, persist=False, search
                   "evidence_gaps": gaps,
                   "clinical_response": "\n\n".join(c.text for c in answer.claims),
                   "retrieved_contexts": [e["text"] for e in evidence], "verification": verdict.model_dump()}
+        result.update(retrieval_trace)
         if hcp and persist:
             store.remember(hcp["hcp_id"], {"question": question, "answer": body,
                            "source_versions": [e["version_id"] for e in citations]}, consent=True)
@@ -281,6 +285,9 @@ def ask(cfg, store, tables, email, question, history=None, persist=False, search
                 except Exception as exc:
                     result["warnings"].append(f"Graphiti write failed ({type(exc).__name__}); local history saved.")
         return result
+    except RetrievalNotReady as exc:
+        return {"decision": "setup", "answer": str(exc), "citations": [], "context_used": {},
+                "limitations": [], "warnings": [], "handoff": None}
     except Exception as exc:
         return {"decision": "error", "answer": "The model service could not complete this request. "
                 "No clinical answer was generated. Check your key, model and connection.",

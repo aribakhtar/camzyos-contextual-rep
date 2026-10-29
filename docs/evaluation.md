@@ -2,6 +2,34 @@
 
 Run `python -m pytest -q` and `python -m ruff check .` before model evaluation. These cover policy boundaries and implementation behavior; they do not measure clinical answer quality.
 
+## Preparation and interactive testing
+
+Run `python -m camzyos.cli build` once, then `python -m camzyos.cli doctor`. Require `retrieval_index.ready: true` before testing. Document parsing/chunking/embedding is a preparation operation; chat embeds only its search query and requires the complete document index. No BM25-only fallback is allowed.
+
+In Streamlit, open **Evaluation**. Choose a case, select **Retrieval only** or **Contextual answer**, enable **Score with RAGAS**, and click **Run evaluation**. The page shows the actual query, reference, metrics, failures and ranked passages, with a JSON download. It does not save HCP chat memory. A retrieval-only test uses the question directly; an answer test evaluates the actual retrieval query rewritten by the answer workflow. Those may rank passages differently and must not be conflated.
+
+Equivalent commands:
+
+```shell
+python -m evals.retrieval --ragas
+python -m evals.retrieval --ragas --answers --case indication
+```
+
+The first runs four source-pinned retrieval cases. The second also generates an answer and scores clinical faithfulness. Reports use timestamped paths under `reports/`; `--output` overrides the path. `--email` selects the synthetic HCP. Metric errors, undefined scores and stale references are recorded and produce a non-zero CLI exit; a completed metric with a low score is a finding, not an execution error.
+
+| Metric | Meaning |
+|---|---|
+| Reference hit@k | Whether a pinned expected passage appears in the returned results. |
+| Reference recall@k | Fraction of annotated expected passages retrieved; annotations are a limited prototype set. |
+| Reciprocal rank | 1/rank of the first expected passage; zero when absent. |
+| RAGAS context precision | Whether passages useful for the reference are ranked before irrelevant ones. |
+| RAGAS context recall | Whether retrieved context supports the reference information. |
+| RAGAS faithfulness | Whether the generated clinical assertions are supported by retrieved context; unavailable for retrieval-only runs. |
+
+The references in [cases.json](../evals/cases.json) are exact excerpts from the supplied EMA PDF, checked against their immutable chunk IDs. They are not model-generated gold answers or independently clinician-approved references. Source changes invalidate them until reviewed. These narrow questions do not cover all safety, dosing, personalization or German-language cases. Numeric RAGAS scores can vary and need manual inspection; the installed metrics may return no explanatory traces.
+
+Official metric references: [context precision](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/), [context recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/). These supplied the metric definitions and collections API usage, not medical content.
+
 ## Comparisons
 
 Run `python -m evals.run --limit 2 --ragas` for an initial live check, then remove `--limit` for eight HCPs × five questions × three modes. The first case is "What is CAMZYOS approved for in Germany?" Set the key first. The runner records the configured model, HCP ID, question, timestamp, active source versions, actual output, context, citations and decision. It refuses to continue if the active corpus changes. It does not store evaluation chats as HCP memory and disables live PubMed search for the comparison.

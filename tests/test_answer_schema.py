@@ -52,7 +52,7 @@ def test_parse_supplies_scoped_schema_to_provider(cfg, monkeypatch):
 
 
 @pytest.mark.parametrize("failure", ["invalid_ids", "verification", "insufficient"])
-def test_refusal_distinguishes_validation_from_missing_evidence(cfg, store, tables, monkeypatch, failure):
+def test_refusal_distinguishes_validation_from_missing_evidence(cfg, store, tables, monkeypatch, failure, indexed):
     cfg["api_key"] = "test-placeholder"
 
     def parse(cfg, schema, instruction, payload):
@@ -86,7 +86,7 @@ def test_verifier_receives_only_each_claims_cited_passages_and_selected_context(
 
 
 @pytest.mark.parametrize("repair_succeeds", [True, False])
-def test_one_correction_is_reverified_before_display(cfg, store, tables, monkeypatch, repair_succeeds):
+def test_one_correction_is_reverified_before_display(cfg, store, tables, monkeypatch, repair_succeeds, indexed):
     cfg["api_key"] = "test-placeholder"
     calls = {"answer": 0, "verification": 0}
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from camzyos.engine import ask
 from camzyos.profiles import load_profiles
+from camzyos.retrieval import require_index
 from camzyos.settings import settings
 from camzyos.store import Store
 
@@ -39,6 +40,7 @@ def main():
         parser.error("Add OPENAI_API_KEY to .env. Live comparisons cannot run without it.")
     tables = load_profiles(cfg["workbook"])
     store = Store(cfg["data_dir"])
+    require_index(cfg, store.chunks())
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)
     cases = [(p, q) for p in tables["HCP_Profile"] for q in QUESTIONS]

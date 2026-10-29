@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from camzyos import ingest, profiles
+from camzyos import evaluation, ingest, profiles
 from camzyos.settings import ROOT, sources
 from camzyos.store import Store
 
@@ -60,6 +60,7 @@ def test_fresh_prepare_works_without_secrets_or_original_folders(portable_cfg, t
     assert len(results) == 8
     assert store.chunks()
     assert {c["source"]["id"] for c in store.chunks()} == {"eu_smpc"}
+    assert all(evaluation.reference_valid(case, store.chunks()) for case in evaluation.cases())
     assert all(v["status"] == "staged" for v in store.versions() if v["source_id"] != "eu_smpc")
     monkeypatch.setattr(ingest, "extract", lambda *a, **k: pytest.fail("Unchanged files must not reparse"))
     assert all(r["unchanged"] for r in ingest.prepare_demo(cfg, store, catalog))

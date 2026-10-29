@@ -99,9 +99,10 @@ def test_no_key_is_honest_preview(cfg, store, tables):
     assert "no clinical answer" in result["answer"].lower()
 
 
-def test_grounded_flow_no_search_or_unconsented_writes(cfg, store, tables, monkeypatch):
+def test_grounded_flow_no_search_or_unconsented_writes(cfg, store, tables, monkeypatch, indexed):
     cfg["api_key"] = "test-placeholder"
     monkeypatch.setattr(pubmed, "discover", lambda *a: pytest.fail("PubMed off must mean no call"))
+    monkeypatch.setattr(engine.graph, "index_chunks", lambda *a: pytest.fail("Chat must never index documents"))
     def fake_parse(cfg, schema, instruction, payload):
         if schema is engine.Decision:
             return engine.Decision(route="answer", reason="Generic information", topic="monitoring",

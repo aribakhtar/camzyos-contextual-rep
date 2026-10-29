@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 from pathlib import Path
 from types import SimpleNamespace
@@ -47,7 +48,35 @@ def test_graphiti_scope_and_configured_database(cfg, monkeypatch):
     assert graph.retain(cfg, "HCP_A", {}, consent=False) is None
 
 
-def test_embedding_sdk_constructor_and_dimensions(cfg, store, monkeypatch):
+@pytest.mark.parametrize("fails", [False, True])
+def test_graphiti_transports_close_before_event_loop_ends(fails):
+    closed = []
+
+    class Transport:
+        def __init__(self, name):
+            self.name = name
+
+        async def close(self):
+            closed.append(self.name)
+
+    async def search(*args, **kwargs):
+        if fails:
+            raise RuntimeError("Synthetic search failure")
+        return []
+
+    async def close():
+        closed.append("graph")
+    client = SimpleNamespace(search=search, close=close, **{
+        name: SimpleNamespace(client=Transport(name)) for name in ("llm_client", "embedder", "cross_encoder")})
+    if fails:
+        with pytest.raises(RuntimeError):
+            asyncio.run(graph.memory(client, "HCP_A", query="test"))
+    else:
+        asyncio.run(graph.memory(client, "HCP_A", query="test"))
+    assert closed == ["llm_client", "embedder", "cross_encoder", "graph"]
+
+
+def test_embedding_sdk_constructor_and_dimensions(cfg, store, monkeypatch, indexed):
     import neo4j_graphrag.embeddings
     seen = []
 
@@ -71,20 +100,19 @@ def test_embedding_sdk_constructor_and_dimensions(cfg, store, monkeypatch):
 
     monkeypatch.setattr(graph, "driver", lambda cfg: Driver())
     monkeypatch.setattr(neo4j_graphrag.embeddings, "OpenAIEmbeddings", Embedder)
+    cfg["api_key"] = "test-placeholder"
     assert graph.sync_documents(cfg, store) == 1
     assert seen == [cfg["embedding_dimensions"]]
 
 
-def test_empty_vector_index_is_reported_as_lexical_fallback(cfg, store, monkeypatch):
+def test_empty_vector_results_never_fall_back_to_lexical_only(cfg, store, monkeypatch, indexed):
     cfg.update(api_key="test-placeholder", neo4j_password="test-placeholder")
     monkeypatch.setattr(graph, "vector_search", lambda *args: [])
-    evidence, backend, warnings = retrieval.retrieve(cfg, store, "monitoring information")
-    assert [e["id"] for e in evidence] == ["v1:0"]
-    assert backend == "BM25 (local eligible passages)"
-    assert any("no eligible passages" in warning for warning in warnings)
+    with pytest.raises(retrieval.RetrievalNotReady, match="no eligible passages"):
+        retrieval.retrieve(cfg, store, "monitoring information")
 
 
-@pytest.mark.parametrize("view", ["Chat", "Compare", "Sources & updates", "Context"])
+@pytest.mark.parametrize("view", ["Chat", "Compare", "Evaluation", "Sources & updates", "Context"])
 def test_streamlit_views_and_identity_reset(cfg, tables, source, monkeypatch, tmp_path, view):
     settings_module = importlib.import_module("camzyos.settings")
     cfg["workbook"] = tmp_path / "exists.xlsx"

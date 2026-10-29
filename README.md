@@ -63,21 +63,20 @@ python scripts/local_neo4j.py start
 
 Use one database option. The helper keeps Java/Neo4j under ignored `.runtime/`, with no Windows service or global Java changes. Docker uses a local named volume. Wait until the following doctor command reports `neo4j_connected: true` before syncing/seeding.
 
-From the activated environment, rebuild and run the pipeline:
+From the activated environment, prepare the document index **before starting chat**:
 
 ```shell
-python -m camzyos.cli prepare
+python -m camzyos.cli build
 python -m camzyos.cli doctor
-python -m camzyos.cli sync
 python -m camzyos.cli seed
 python -m streamlit run app.py
 ```
 
-`prepare` works offline without secrets: it parses the bundled PDFs and recreates the initial active EMA corpus only when the complete source hash and pipeline-version ID match [the recorded prototype review](assets/demo_review.json). Changed/new versions remain staged for review; previously withdrawn versions are not restored. Prototype eligibility is not sponsor approval. `ingest` remains the stage-only command for ordinary document updates.
+`build` parses/chunks the bundled PDFs, restores only the exact version in [the recorded prototype review](assets/demo_review.json), embeds it and verifies the complete index. Changed/new versions remain staged for review; previously withdrawn versions are not restored. Prototype eligibility is not sponsor approval. `prepare` is the optional offline parsing step only; it does **not** make chat ready. `ingest --source SOURCE_ID --file path/to/replacement.pdf` parses, chunks and indexes a replacement while keeping it staged. Reviewed activation checks indexing before switching the active version.
 
-`sync` embeds active documents. `seed` imports the eight supplied HCP contexts into isolated Graphiti groups. Both use the configured API and incur usage; repeating an unchanged seed skips its existing episode. Open http://127.0.0.1:8501 and use `anna.weber@example-clinic.de` or another workbook email.
+`sync` repairs/rebuilds the active document index if needed. `seed` imports the eight supplied HCP contexts into isolated Graphiti groups. Indexing and seeding use the configured API and incur usage; unchanged embeddings and an unchanged seed are reused. Open http://127.0.0.1:8501 and use `anna.weber@example-clinic.de` or another workbook email.
 
-`doctor` should report `workbook_found`, `pdf_folder_found`, `api_key_configured` and `neo4j_connected` as `true`, with `active_chunks: 20` for the bundled initial corpus. It checks configuration/database connectivity, not whether your model API key is valid. Wait for Neo4j to start and rerun `doctor` if its connection is initially false.
+`doctor` should report the input/key/connection flags as `true` and `retrieval_index.ready: true`, with **20/20** eligible passages indexed. Readiness checks every active passage, its text, embedding model/dimensions and the index's ONLINE state. It does not make a paid model call to validate your API key. Chat stops with a setup error if indexing is incomplete or vector retrieval fails; BM25 is used alongside vector search, never as a replacement for a missing vector index.
 
 ### Starting again tomorrow
 
@@ -87,7 +86,22 @@ For Docker, `docker compose down` stops the database while preserving its named 
 
 If PowerShell blocks `Activate.ps1`, run commands with `.\.venv\Scripts\python.exe` instead of `python`; activation is only a convenience. If Docker reports that it cannot connect, start Docker Desktop before running Compose. The optional database browser is http://127.0.0.1:7474 (user `neo4j`, your database password); the chatbot itself is on port 8501.
 
-Without a key, profile loading, lexical retrieval previews, deterministic handoff rules, source review and update staging work. The app labels previews as passages, not generated medical answers. Generated databases, embeddings and runtime packages are rebuilt on the new machine; credentials and real chat histories are not distributed with the repo.
+Without a key, profile loading, deterministic handoff rules and offline source preparation remain available. Clinical answers require the model API and a ready document index. Chat never parses or embeds document files; it only embeds the current search query. Generated databases, embeddings and runtime packages are rebuilt on the new machine; credentials and real chat histories are not distributed with the repo.
+
+## Test it in Streamlit
+
+1. In **Sources & updates**, check readiness or click **Build bundled document index**. Uploading a replacement automatically parses, chunks and indexes that version. Review it, then click **Activate reviewed version**. The previous valid version stays active if indexing fails.
+2. Open **Evaluation**, choose a source-pinned test case and select **Retrieval only** or **Contextual answer**. Keep **Score with RAGAS** checked and click **Run evaluation**. Inspect the reference, ranked passages, actual search query, scores and errors; download the JSON report.
+3. Use **Compare** for the same-model generic/document-only/contextual answer comparison. Evaluation never writes HCP memory, and PubMed is disabled for comparable runs.
+
+```shell
+python -m evals.retrieval --ragas
+python -m evals.retrieval --ragas --answers --case indication
+```
+
+The first command tests four questions against the document index. The second also generates a contextual answer and scores faithfulness. Reports go to timestamped files under ignored `reports/`. The four references are source-checked excerpts pinned to exact chunk versions; independent clinical review is still pending. Changed sources invalidate references rather than silently reusing old expected answers. See [the evaluation guide](docs/evaluation.md).
+
+**LangGraph clarification:** the Graphiti example we researched uses LangGraph, but this application uses Graphiti's library directly. `camzyos/engine.py` coordinates the workflow in Python. LangGraph is installed transitively through evaluation dependencies; it does not run this chatbot. Graphiti memory and document RAG do not require the example's LangGraph orchestration.
 
 ## What is implemented
 
@@ -121,7 +135,7 @@ Graphiti handles interaction memory. `neo4j-graphrag` handles document vectors; 
 
 ## Source updates and evaluation
 
-Use **Sources & updates** to upload a replacement or check the configured publisher URL. Inspect the extraction audit before activation, then sync embeddings. Unchanged source bytes and pipeline settings skip parsing. Withdrawn, expired and superseded versions cannot support new answers; historical answers retain their original citations.
+Use **Sources & updates** to upload a replacement or check the configured publisher URL. Parsing, chunking and indexing happen in that preparation workflow. Inspect the extraction audit before activation; activation verifies indexing before switching versions. Unchanged source bytes and pipeline settings skip parsing. Withdrawn, expired and superseded versions cannot support new answers; historical answers retain their original citations.
 
 ```powershell
 .venv\Scripts\python.exe -m pytest -q

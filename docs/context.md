@@ -45,6 +45,8 @@ The user proposed Graph RAG + RAGAS + Streamlit, asked for broad reuse research,
 
 Use Python, Streamlit, Graphiti/Neo4j, PyMuPDF, a sentence segmenter, controlled document retrieval and RAGAS/custom evaluations. Prefer libraries and a short explicit workflow over a framework-heavy autonomous system. No new graph-extraction framework is being built. Canonical workbook fields are read deterministically; Graphiti adds attributed temporal memory rather than replacing those records.
 
+The user subsequently required document preparation to finish before chat: uploads must parse, chunk and index in a separate preparation workflow. A missing index must not silently fall back to lexical-only clinical answers. The implementation now enforces index readiness and indexes replacements before activation. They also requested practical retrieval/RAGAS testing, now provided by the Evaluation view and source-pinned CLI runner. LangGraph was clarified as part of the researched example and an indirect dependency, not the orchestrator implemented in this app.
+
 The user requested an actual GitHub repo, an ignored `.env` for their key, a non-secret config file, sentence/word-preserving soft chunks, repeated header/footer cleanup and retention of this discussion in the repo. Keep meaningful section titles and clinical footnotes; blindly deleting all top/bottom text would lose evidence.
 
 For updated documents, hash source bytes and extraction settings, stage new parsed chunks, review, and switch the active version atomically. Keep old snapshots/citations auditable and exclude invalid versions. An on-demand publisher check is sufficient for this iteration; a scheduled watcher is not implemented.

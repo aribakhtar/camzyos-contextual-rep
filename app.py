@@ -1,11 +1,13 @@
 """Local synthetic-HCP demo. Email selection is not production authentication."""
+import hashlib
 import json
 
 import streamlit as st
 
 from camzyos import graph, profiles
 from camzyos.engine import ask
-from camzyos.ingest import fetch_public, process
+from camzyos.evaluation import cases, evaluate
+from camzyos.ingest import build, fetch_public, process_document, publish_version
 from camzyos.settings import settings, sources
 from camzyos.store import Store
 
@@ -52,10 +54,15 @@ with st.sidebar:
         except Exception:
             st.warning("Local chat memory removed. Graphiti was unreachable; graph deletion is incomplete.")
         st.session_state.messages = []
-    page = st.radio("View", ["Chat", "Compare", "Sources & updates", "Context"])
-    st.caption(f"Eligible local passages: {len(store.chunks(cfg['account_map'].get(hcp['hcp_id']) if hcp else None))}")
+    page = st.radio("View", ["Chat", "Compare", "Evaluation", "Sources & updates", "Context"])
+    active_chunks = store.chunks(cfg['account_map'].get(hcp['hcp_id']) if hcp else None)
+    readiness = graph.index_status(cfg, active_chunks)
+    if readiness["ready"]:
+        st.success(f"Retrieval ready: {readiness['indexed_chunks']}/{len(active_chunks)} passages indexed")
+    else:
+        st.warning("Retrieval not ready. Complete Sources & updates before asking clinical questions.")
     if not cfg["api_key"]:
-        st.warning("API key missing: retrieval preview and guardrails remain available.")
+        st.warning("API key missing. Add it before document setup or clinical answers.")
 
 
 def render(result, key):
@@ -104,11 +111,27 @@ if page == "Context":
 elif page == "Sources & updates":
     st.subheader("Source registry and versioned updates")
     st.warning("Local reviewer tools. Prototype eligibility is not sponsor compliance approval.")
+    st.caption("Prepare documents here before chat: parse → chunk → index → review → activate. "
+               "Chat never parses or embeds document files.")
+    st.json(readiness)
+    if st.button("Build bundled document index", disabled=not bool(cfg["api_key"])):
+        with st.spinner("Preparing bundled documents and checking the complete index..."):
+            try:
+                st.session_state.build_status = build(cfg, store, catalog)
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Build incomplete ({type(exc).__name__}). Check configuration and retry.")
     st.dataframe([{k: s.get(k, "") for k in ("id", "title", "market", "audience", "eligible", "contribution")}
                   for s in catalog], hide_index=True)
     selected = st.selectbox("Source", catalog, format_func=lambda s: s["title"])
     uploaded = st.file_uploader("Stage a replacement PDF", type=["pdf"])
-    if st.button("Parse / reprocess source"):
+    st.caption("Uploading starts parsing, chunking and indexing automatically and may use your model API. "
+               "The new version stays hidden from chat until reviewed and activated.")
+    retry = st.button("Process / index source", disabled=not bool(cfg["api_key"]))
+    upload_id = (selected["id"], hashlib.sha256(uploaded.getvalue()).hexdigest()) if uploaded else None
+    new_upload = upload_id and st.session_state.get("processed_upload") != upload_id
+    if retry or (new_upload and cfg["api_key"]):
+        st.session_state.processed_upload = upload_id
         try:
             path = None
             if uploaded:
@@ -116,12 +139,14 @@ elif page == "Sources & updates":
                 folder.mkdir(parents=True, exist_ok=True)
                 path = folder / selected["file"]
                 path.write_bytes(uploaded.getvalue())
-            st.json(process(cfg, store, selected, path))
+            with st.spinner("Parsing, chunking and indexing the staged version..."):
+                st.json(process_document(cfg, store, selected, path))
+            st.success("Processing complete. Review the extraction below before activation.")
         except Exception as exc:
             st.error(str(exc))
     if selected.get("url") and st.button("Check publisher for an updated PDF"):
         try:
-            st.json(process(cfg, store, selected, fetch_public(cfg, selected)))
+            st.json(process_document(cfg, store, selected, fetch_public(cfg, selected)))
         except Exception as exc:
             st.error(f"Publisher check failed ({type(exc).__name__}). Existing valid versions remain available.")
     versions = [v for v in store.versions() if v["source_id"] == selected["id"]]
@@ -133,9 +158,9 @@ elif page == "Sources & updates":
         acknowledged = st.checkbox("I reviewed this source's scope and extraction limitations")
         if st.button("Activate reviewed version", disabled=not acknowledged or not review):
             try:
-                store.activate(version["id"], review)
-                st.success("Activated atomically. Previous versions remain auditable.")
-            except ValueError as exc:
+                publish_version(cfg, store, version["id"], review)
+                st.success("Index verified and version activated. Previous versions remain auditable.")
+            except Exception as exc:
                 st.error(str(exc))
         if st.button("Withdraw this version"):
             store.deactivate(version["id"])
@@ -145,12 +170,52 @@ elif page == "Sources & updates":
             try:
                 st.success(f"Indexed {graph.sync_documents(cfg, store)} passages.")
             except Exception as exc:
-                st.error(f"Sync incomplete ({type(exc).__name__}). Local retrieval remains available.")
+                st.error(f"Index incomplete ({type(exc).__name__}). Chat requires a complete index.")
+elif page == "Evaluation":
+    st.subheader("Test retrieval and answer quality")
+    st.caption("Runs use the selected HCP without saving chat memory. PubMed is disabled. "
+               "RAGAS uses paid judge calls; scores do not replace clinical review.")
+    case = st.selectbox("Test case", cases(), format_func=lambda c: c["question"])
+    with st.expander("Reference and expected source"):
+        st.json(case)
+    test = st.radio("Test type", ["Retrieval only", "Contextual answer"], horizontal=True)
+    use_ragas = st.checkbox("Score with RAGAS", value=True)
+    st.caption("Reference hit/recall and reciprocal rank locate the expected passage. RAGAS context precision "
+               "and recall assess retrieval; faithfulness is added when an answer is generated.")
+    if st.button("Run evaluation", disabled=not readiness["ready"] or not bool(cfg["api_key"])):
+        st.session_state.pop("evaluation", None)
+        with st.spinner("Running the selected test..."):
+            try:
+                st.session_state.evaluation = evaluate(cfg, store, tables, email, case,
+                    ragas=use_ragas, retrieval_only=test == "Retrieval only")
+            except Exception as exc:
+                st.error(f"Evaluation could not finish ({type(exc).__name__}). Check setup and retry.")
+    if record := st.session_state.get("evaluation"):
+        st.write(record["question"])
+        st.caption(f"Result: {record['result']['decision']} · {record['mode']}")
+        st.caption("Search query used: " + record["result"].get("retrieval_query", record["question"]))
+        st.dataframe([{"metric": k, "value": v} for k, v in record["metrics"].items()], hide_index=True)
+        if record["metric_errors"]:
+            st.warning("Some scores are unavailable; missing scores are not passes.")
+            st.json(record["metric_errors"])
+        if record.get("metric_details"):
+            with st.expander("RAGAS judge details"):
+                st.json(record["metric_details"])
+        if record["mode"] != "retrieval":
+            render(record["result"], "evaluation")
+        st.caption("Retrieved passages in rank order")
+        for rank, passage in enumerate(record["result"].get("retrieved_evidence", []), 1):
+            with st.expander(f"{rank}. {passage['source']['title']} · pages "
+                             f"{passage.get('page')}–{passage.get('page_end')}"):
+                st.caption(passage["id"])
+                st.text(passage["text"])
+        st.download_button("Download evaluation JSON", json.dumps(record, ensure_ascii=False, indent=2),
+                           file_name="evaluation.json", mime="application/json")
 elif page == "Compare":
     st.subheader("Same question · same model · three context settings")
     st.caption("Runs do not save memory. Compare actual results, including ties and failures.")
     query = st.text_area("Evaluation question", "What should I know about CAMZYOS monitoring?")
-    if st.button("Run comparison", disabled=not bool(cfg["api_key"])):
+    if st.button("Run comparison", disabled=not bool(cfg["api_key"]) or not readiness["ready"]):
         for column, mode in zip(st.columns(3), ["generic", "documents", "contextual"]):
             with column, st.spinner(mode):
                 st.subheader(mode.title())

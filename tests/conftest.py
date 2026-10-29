@@ -7,6 +7,16 @@ from camzyos.store import Store
 
 
 @pytest.fixture
+def indexed(monkeypatch):
+    """Synthetic ready index for answer-policy tests; readiness has separate failure tests."""
+    from camzyos import graph
+    monkeypatch.setattr(graph, "index_status", lambda cfg, chunks: {
+        "ready": bool(chunks), "eligible_chunks": len(chunks), "indexed_chunks": len(chunks),
+        "index_state": "ONLINE", "missing_ids": []})
+    monkeypatch.setattr(graph, "vector_search", lambda cfg, query, chunks: [c["id"] for c in chunks])
+
+
+@pytest.fixture
 def cfg(tmp_path):
     return {**settings(), "data_dir": tmp_path, "api_key": "", "neo4j_password": "",
             "graphiti_enabled": False}

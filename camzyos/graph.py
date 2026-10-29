@@ -21,9 +21,46 @@ def status(cfg):
         return False
 
 
-def sync_documents(cfg, store):
+def index_status(cfg, chunks):
+    """Read-only readiness: all eligible passages must have compatible embeddings."""
+    result = {"ready": False, "eligible_chunks": len(chunks), "indexed_chunks": 0,
+              "index_state": "missing", "missing_ids": [c["id"] for c in chunks]}
+    if not chunks:
+        return result
+    try:
+        with driver(cfg) as db:
+            indexes = db.execute_query("SHOW VECTOR INDEXES YIELD name,state,options "
+                                       "WHERE name='camzyos_embeddings' RETURN state,options",
+                                       database_=cfg["neo4j_database"]).records
+            if not indexes:
+                return result
+            result["index_state"] = indexes[0]["state"]
+            dimensions = indexes[0]["options"]["indexConfig"].get("vector.dimensions")
+            if dimensions != cfg["embedding_dimensions"]:
+                result["index_state"] = "incompatible dimensions"
+                return result
+            rows = db.execute_query("MATCH(c:CamzyosChunk) WHERE c.id IN $ids "
+                                    "AND c.embedding_model=$model AND size(c.embedding)=$dimensions "
+                                    "RETURN c.id AS id,c.text AS text",
+                                    ids=[c["id"] for c in chunks], model=cfg["embedding_model"],
+                                    dimensions=cfg["embedding_dimensions"], database_=cfg["neo4j_database"]).records
+        expected = {c["id"]: c["text"] for c in chunks}
+        ready = {r["id"] for r in rows if expected.get(r["id"]) == r["text"]}
+        result.update(indexed_chunks=len(ready), missing_ids=sorted(set(expected) - ready))
+        result["ready"] = result["index_state"] == "ONLINE" and not result["missing_ids"]
+    except Exception as exc:
+        result.update(index_state="unavailable", error=type(exc).__name__)
+    return result
+
+
+def index_chunks(cfg, chunks):
+    if not cfg["api_key"]:
+        raise ValueError("Set OPENAI_API_KEY before indexing documents.")
+    if not chunks:
+        raise ValueError("No eligible passages to index; review the source and extraction first.")
+    if index_status(cfg, chunks)["index_state"] == "incompatible dimensions":
+        raise ValueError("Index dimensions differ from configuration; migrate the index before embedding.")
     from neo4j_graphrag.embeddings import OpenAIEmbeddings
-    chunks = store.chunks(all_accounts=True)
     with driver(cfg) as db:
         db.execute_query("CREATE CONSTRAINT camzyos_chunk_id IF NOT EXISTS FOR (c:CamzyosChunk) "
                          "REQUIRE c.id IS UNIQUE", database_=cfg["neo4j_database"])
@@ -31,21 +68,33 @@ def sync_documents(cfg, store):
                          "FOR (c:CamzyosChunk) ON (c.embedding) OPTIONS {indexConfig: {"
                          "`vector.dimensions`: $dimensions, `vector.similarity_function`: 'cosine'}}",
                          dimensions=cfg["embedding_dimensions"], database_=cfg["neo4j_database"])
-        existing = db.execute_query("MATCH(c:CamzyosChunk) WHERE c.embedding IS NOT NULL "
-                                    "RETURN c.id AS id, c.embedding_model AS model",
+        existing = db.execute_query("MATCH(c:CamzyosChunk) WHERE c.embedding_model=$model "
+                                    "AND size(c.embedding)=$dimensions RETURN c.id AS id,c.text AS text",
+                                    model=cfg["embedding_model"], dimensions=cfg["embedding_dimensions"],
                                     database_=cfg["neo4j_database"]).records
-        ready = {r["id"] for r in existing if r["model"] == cfg["embedding_model"]}
+        expected = {c["id"]: c["text"] for c in chunks}
+        ready = {r["id"] for r in existing if expected.get(r["id"]) == r["text"]}
         embedder = OpenAIEmbeddings(model=cfg["embedding_model"], api_key=cfg["api_key"],
                                     base_url=cfg["base_url"])
         for chunk in chunks:
             if chunk["id"] in ready:
                 continue
             vector = embedder.embed_query(chunk["text"], dimensions=cfg["embedding_dimensions"])
+            if len(vector) != cfg["embedding_dimensions"]:
+                raise ValueError("Embedding dimensions do not match the configured index.")
             db.execute_query("MERGE(c:CamzyosChunk {id:$id}) SET c.text=$text,c.version_id=$version,"
                              "c.embedding=$vector,c.embedding_model=$model",
                              id=chunk["id"], text=chunk["text"], version=chunk["version_id"],
                              vector=vector, model=cfg["embedding_model"], database_=cfg["neo4j_database"])
+        db.execute_query("CALL db.awaitIndex('camzyos_embeddings', 30)", database_=cfg["neo4j_database"])
+    readiness = index_status(cfg, chunks)
+    if not readiness["ready"]:
+        raise RuntimeError("Document indexing is incomplete: " + readiness["index_state"])
     return len(chunks)
+
+
+def sync_documents(cfg, store):
+    return index_chunks(cfg, store.chunks(all_accounts=True))
 
 
 def vector_search(cfg, question, allowed):
@@ -118,7 +167,13 @@ async def memory(client, hcp_id, query=None, episode=None, seed=False):
         return [{"fact": edge.fact, "uuid": edge.uuid, "group_id": edge.group_id} for edge in edges
                 if edge.group_id == group(hcp_id)]
     finally:
-        await client.close()
+        try:
+            for component in ("llm_client", "embedder", "cross_encoder"):
+                transport = getattr(getattr(client, component, None), "client", None)
+                if transport is not None:
+                    await transport.close()
+        finally:
+            await client.close()
 
 
 def recall(cfg, hcp_id, query):

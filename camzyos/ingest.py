@@ -5,8 +5,34 @@ from pathlib import Path
 
 import httpx
 
+from camzyos import graph
 from camzyos.documents import digest, extract, soft_chunks
 from camzyos.settings import ROOT
+
+
+def process_document(cfg, store, source, path=None):
+    """Offline preparation action: parse, chunk, stage and index; no automatic approval."""
+    result = process(cfg, store, source, path)
+    if result["status"] == "missing":
+        raise FileNotFoundError("The configured PDF was not found.")
+    chunks = store.version_chunks(result["version"]) if "version" in result else []
+    result["indexed_chunks"] = graph.index_chunks(cfg, chunks) if chunks else 0
+    return result
+
+
+def publish_version(cfg, store, version, note):
+    if not note.strip():
+        raise ValueError("A review note is required.")
+    # Populate immutable new vectors while chat continues to use the previous active version.
+    graph.index_chunks(cfg, store.version_chunks(version))
+    store.activate(version, note)
+
+
+def build(cfg, store, catalog):
+    """One-time clone setup. Chat never calls this pipeline."""
+    prepare_demo(cfg, store, catalog)
+    graph.sync_documents(cfg, store)
+    return graph.index_status(cfg, store.chunks(all_accounts=True))
 
 
 def prepare_demo(cfg, store, catalog):
@@ -29,6 +55,8 @@ def prepare_demo(cfg, store, catalog):
 
 
 def process(cfg, store, source, path=None):
+    if path is not None and not Path(path).is_file():
+        raise FileNotFoundError("The supplied PDF path was not found.")
     path = Path(path) if path else cfg["pdf_dir"] / source["file"]
     if not path.exists():
         path = cfg["data_dir"] / "public" / source["file"]

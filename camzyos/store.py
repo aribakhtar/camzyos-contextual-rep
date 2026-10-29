@@ -82,6 +82,18 @@ class Store:
             db.execute("UPDATE sources SET active=NULL WHERE active=?", (version,))
             db.execute("UPDATE versions SET status='withdrawn' WHERE id=?", (version,))
 
+    def version_chunks(self, version):
+        """Eligible staged passages for indexing; never used by chat before activation."""
+        with self.db() as db:
+            rows = db.execute("SELECT c.id,c.version_id,c.info,s.info AS source_info,v.source_snapshot "
+                              "FROM chunks c JOIN versions v ON v.id=c.version_id "
+                              "JOIN sources s ON s.id=v.source_id WHERE v.id=?", (version,)).fetchall()
+        return [{**json.loads(r["info"]), "id": r["id"], "version_id": r["version_id"],
+                 "source": json.loads(r["source_snapshot"])} for r in rows
+                if eligible(json.loads(r["source_info"]), allow_account=True)
+                and eligible(json.loads(r["source_snapshot"]), allow_account=True)
+                and within_pages(json.loads(r["info"]), json.loads(r["source_info"]))]
+
     def chunks(self, account_id=None, all_accounts=False):
         with self.db() as db:
             rows = db.execute("SELECT c.id,c.version_id,c.info,s.info AS source_info,v.source_snapshot FROM chunks c "

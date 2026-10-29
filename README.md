@@ -8,7 +8,7 @@ A Streamlit prototype for personalized CAMZYOS information for HCPs in Germany. 
 
 **The inputs are included in Git:** [assets/hcp_context.xlsx](assets/hcp_context.xlsx) is the original workbook, and [assets/product_information](assets/product_information) contains all seven supplied PDFs plus the downloaded German Fachinformation. You do not need the original Desktop/Downloads folders. See [asset provenance and workbook usage](assets/README.md).
 
-Use Python 3.13 for the locked environment. Clone this private repo using your GitHub access:
+Install **Git** and **Python 3.13**. For the Docker database option, also install and start **Docker Desktop** on Windows/macOS, or Docker Engine with Compose on Linux. Windows users can instead use the included database helper below. No Neo4j cloud account or knowledge of graph queries is needed. This repo is private, so collaborators need GitHub access before cloning:
 
 ```shell
 git clone https://github.com/aribakhtar/camzyos-contextual-rep.git
@@ -35,7 +35,20 @@ cp .env.example .env
 
 Create `.env` only on a fresh clone; preserve an existing file containing your key. Set `OPENAI_API_KEY` and a `NEO4J_PASSWORD` of at least eight characters. Input paths already default to the committed assets in `config.yaml`; optional `.env` overrides can be relative to the repository root or absolute.
 
-Start Neo4j with Docker Compose (Windows/macOS/Linux), or point `.env` at an existing Neo4j instance:
+| Setting | What to enter |
+|---|---|
+| `OPENAI_API_KEY` | Your model API key; generation, embeddings, memory extraction and evaluation use it. |
+| `NEO4J_PASSWORD` | A password you choose for your local database before its first setup. It is not an API key. |
+| `NEO4J_URI`, `NEO4J_USER`, `NEO4J_DATABASE` | Leave the supplied defaults for the local database. |
+| `NCBI_API_KEY` | Optional key for higher PubMed API request limits. Leave blank for this prototype. |
+| `NCBI_EMAIL` | Optional developer contact email included in PubMed requests to NCBI; not an HCP email or email account password. |
+| `WORKBOOK_PATH`, `PDF_DIR` | Leave blank to use the workbook and PDFs already in `assets/`. |
+
+PubMed search is **off by default** (`pubmed_enabled: false` in `config.yaml`). It can make low-volume requests without an NCBI key; see [NCBI's API key explanation](https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/). Enabling discovery does not approve articles for clinical answers: those require the reviewed-PMID allowlist. The core PDF/workbook chatbot needs neither NCBI field.
+
+**Neo4j is the local database** holding Graphiti's HCP memory graph and document search vectors. Graphiti builds and queries the memory; the application creates the database indexes. You do not need to create nodes manually. SQLite holds the source registry and consented chat records in the generated `data/` folder.
+
+Start Neo4j with Docker Compose (Windows/macOS/Linux), or point `.env` at an existing Neo4j instance. The following command downloads the configured database image on its first run, creates the local database, and runs it in the background:
 
 ```shell
 docker compose up -d
@@ -63,6 +76,16 @@ python -m streamlit run app.py
 `prepare` works offline without secrets: it parses the bundled PDFs and recreates the initial active EMA corpus only when the complete source hash and pipeline-version ID match [the recorded prototype review](assets/demo_review.json). Changed/new versions remain staged for review; previously withdrawn versions are not restored. Prototype eligibility is not sponsor approval. `ingest` remains the stage-only command for ordinary document updates.
 
 `sync` embeds active documents. `seed` imports the eight supplied HCP contexts into isolated Graphiti groups. Both use the configured API and incur usage; repeating an unchanged seed skips its existing episode. Open http://127.0.0.1:8501 and use `anna.weber@example-clinic.de` or another workbook email.
+
+`doctor` should report `workbook_found`, `pdf_folder_found`, `api_key_configured` and `neo4j_connected` as `true`, with `active_chunks: 20` for the bundled initial corpus. It checks configuration/database connectivity, not whether your model API key is valid. Wait for Neo4j to start and rerun `doctor` if its connection is initially false.
+
+### Starting again tomorrow
+
+From the repo folder, activate the same Python environment, start the database using your chosen option (`docker compose up -d` or `python scripts/local_neo4j.py start`), then run `python -m streamlit run app.py`. Keep `.env`, `data/` and the database storage on that machine. You do not need to reinstall, reparse or reseed unchanged inputs on every launch.
+
+For Docker, `docker compose down` stops the database while preserving its named data volume. Changing `NEO4J_PASSWORD` in `.env` later does not change a password already stored in an existing database. If login fails, use the password set during initial setup. A fresh clone on another machine needs its own `.env` and the full first-run pipeline above; it does not inherit your saved conversations.
+
+If PowerShell blocks `Activate.ps1`, run commands with `.\.venv\Scripts\python.exe` instead of `python`; activation is only a convenience. If Docker reports that it cannot connect, start Docker Desktop before running Compose. The optional database browser is http://127.0.0.1:7474 (user `neo4j`, your database password); the chatbot itself is on port 8501.
 
 Without a key, profile loading, lexical retrieval previews, deterministic handoff rules, source review and update staging work. The app labels previews as passages, not generated medical answers. Generated databases, embeddings and runtime packages are rebuilt on the new machine; credentials and real chat histories are not distributed with the repo.
 

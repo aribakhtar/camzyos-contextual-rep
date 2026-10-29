@@ -11,9 +11,9 @@
 - Streamlit was started on localhost. UI behavior was exercised with Streamlit AppTest. The in-app browser connection was unavailable in this environment, so visual browser inspection is not claimed.
 - Source update operations, source/context displays, optional PubMed, baseline comparisons and a RAGAS evaluation runner are implemented. The model-answer workflow is tested with controlled responses.
 
-## Requires the user's key
+## Live validation still pending
 
-Live generation, actual embeddings, Graphiti extraction/recall on seeded HCP memory, and scored baseline/contextual comparisons have **not** been run. The missing key is intentionally left for the user in ignored `.env`. Configure it, run document `sync` and Graphiti `seed`, then execute the evaluation cases. API availability, latency, cost and clinical answer quality still need to be measured.
+Live generation, actual embeddings, Graphiti extraction/recall on seeded HCP memory, and scored baseline/contextual comparisons have **not** been run. The user has now supplied a key in ignored `.env`; the configuration check detects it and connects to the local Neo4j database. This does not validate the key with the model provider. The remaining live steps are document `sync`, Graphiti `seed`, and the evaluation cases. API availability, latency, cost and clinical answer quality still need to be measured.
 
 No clinical quality score or improvement percentage has been invented. A model-based verification step can still miss an error; the finite tests do not establish a universal no-hallucination guarantee.
 

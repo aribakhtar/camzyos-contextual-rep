@@ -1,0 +1,3 @@
+# Preserve source documents byte-for-byte across Windows, macOS and Linux checkouts.
+*.pdf binary
+*.xlsx binary

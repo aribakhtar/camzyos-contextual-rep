@@ -5,9 +5,10 @@ import json
 import os
 import socket
 import subprocess
-import urllib.request
 import zipfile
 from pathlib import Path
+
+import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / ".runtime"
@@ -16,7 +17,13 @@ RUNTIME = ROOT / ".runtime"
 def download(url, target):
     if not target.exists():
         print(f"Downloading {target.name}", flush=True)
-        urllib.request.urlretrieve(url, target)
+        partial = target.with_suffix(".part")
+        with httpx.stream("GET", url, timeout=120, follow_redirects=True) as response:
+            response.raise_for_status()
+            with partial.open("wb") as output:
+                for block in response.iter_bytes():
+                    output.write(block)
+        partial.replace(target)
 
 
 def setup():
@@ -27,9 +34,10 @@ def setup():
     if cached.exists():
         package = json.loads(cached.read_text(encoding="utf-8-sig"))
     else:
-        request = urllib.request.Request(url, headers={"User-Agent": "camzyos-prototype/0.1"})
-        with urllib.request.urlopen(request, timeout=30) as response:
-            package = json.load(response)[0]["binary"]["package"]
+        response = httpx.get(url, headers={"User-Agent": "camzyos-prototype/0.1"},
+                             timeout=30, follow_redirects=True)
+        response.raise_for_status()
+        package = response.json()[0]["binary"]["package"]
     java_zip = RUNTIME / "java.zip"
     download(package["link"], java_zip)
     if hashlib.sha256(java_zip.read_bytes()).hexdigest() != package["checksum"]:

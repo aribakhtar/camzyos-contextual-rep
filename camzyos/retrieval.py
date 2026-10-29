@@ -22,7 +22,10 @@ def retrieve(cfg, store, question, account_id=None):
     if cfg["api_key"] and cfg["neo4j_password"]:
         try:
             vector = graph.vector_search(cfg, question, chunks)
-            backend = "Neo4j vector + BM25"
+            if vector:
+                backend = "Neo4j vector + BM25"
+            else:
+                warnings.append("Vector search returned no eligible passages; used local BM25.")
         except Exception as exc:
             warnings.append(f"Vector retrieval unavailable ({type(exc).__name__}); used local BM25.")
     # Reciprocal rank fusion; both inputs are already scoped, and membership is checked again.

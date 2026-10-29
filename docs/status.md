@@ -13,7 +13,7 @@
 
 ## Live validation still pending
 
-Live generation, actual embeddings, Graphiti extraction/recall on seeded HCP memory, and scored baseline/contextual comparisons have **not** been run. The user has now supplied a key in ignored `.env`; the configuration check detects it and connects to the local Neo4j database. This does not validate the key with the model provider. The remaining live steps are document `sync`, Graphiti `seed`, and the evaluation cases. API availability, latency, cost and clinical answer quality still need to be measured.
+Live generation and actual embeddings have now been exercised for the indication regression below. Graphiti extraction/recall on seeded HCP memory and scored baseline/contextual comparisons have **not** been validated. The remaining live steps include Graphiti `seed` and the broader evaluation cases. API reliability, latency, cost and clinical answer quality across the use cases still need to be measured.
 
 No clinical quality score or improvement percentage has been invented. A model-based verification step can still miss an error; the finite tests do not establish a universal no-hallucination guarantee.
 
@@ -39,4 +39,16 @@ The supplied workbook and all seven supplied PDFs are now committed in `assets/`
 
 The README now includes clone/install/prepare/sync/seed/run commands for Windows and macOS/Linux. `compose.yaml` provides an optional Neo4j container; its official amd64/arm64 image tag was verified, while local execution continues to use the already-running portable Windows Neo4j. CI validates Compose configuration syntax.
 
-The user has now supplied an API key locally. These portability checks do not constitute a live clinical quality benchmark or a completed Graphiti seed; the initial live-evaluation limitations above still apply.
+The user has now supplied an API key locally. These portability checks do not constitute a live clinical quality benchmark or a completed Graphiti seed.
+
+## Approved-indication regression — 30 October 2026
+
+The question "What is CAMZYOS approved for in Germany?" reproduced a false insufficient-evidence handoff. Retrieval found the indication passage and the model generated a supported clinical statement, but placed a document ID in `context_used`. The deterministic context check rejected it; the old message incorrectly described this as missing evidence.
+
+- Answer schemas now enumerate the actual retrieved passage IDs and the current HCP context keys separately. Unknown HCPs can return only an empty personal-context list. Existing eligibility and ID validation remain enforced.
+- A live UI test also exposed a correct statement attached to the wrong passage. Verification now receives only the evidence cited by each claim and the selected personal context. One correction attempt is reverified before display; repeated validation failure produces a validation-specific handoff, without exposing the rejected draft.
+- The empty document vector index was populated with real embeddings for all **20 active passages**. Empty vector results now explicitly report BM25 fallback instead of claiming hybrid retrieval was used.
+- Live Streamlit AppTest runs returned the approved indication with the correct source passage for Anna, an unknown email, and a German question from another HCP. The unknown session had no personal context. A deliberately incorrect indication citation failed live verification; a patient-specific request still produced a handoff. These checks did not save conversations.
+- **54 automated tests pass**, with Ruff clean. New regressions cover separate identifier schemas, unknown-user context, per-claim verification inputs, bounded correction, accurate refusal reasons and empty-vector reporting. The evaluation runner now includes the approved-indication question.
+
+These focused checks establish the reported question's retrieval/citation path, not a full clinical benchmark or a guarantee of error-free personalization. Human review of contextual phrasing, language adherence and completeness is still required. The structured-output implementation follows [official OpenAI documentation](https://developers.openai.com/api/docs/guides/structured-outputs); schema validity alone does not establish factual correctness.

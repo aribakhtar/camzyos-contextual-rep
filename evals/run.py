@@ -10,7 +10,8 @@ from camzyos.profiles import load_profiles
 from camzyos.settings import settings
 from camzyos.store import Store
 
-QUESTIONS = ["What should I know about CAMZYOS initiation?",
+QUESTIONS = ["What is CAMZYOS approved for in Germany?",
+             "What should I know about CAMZYOS initiation?",
              "What monitoring information is relevant to my practice?",
              "Summarise the main safety information for CAMZYOS.",
              "What clinical evidence supports the approved use?"]

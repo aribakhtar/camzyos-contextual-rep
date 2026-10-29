@@ -4,7 +4,7 @@ Run `python -m pytest -q` and `python -m ruff check .` before model evaluation. 
 
 ## Comparisons
 
-Run `python -m evals.run --limit 2 --ragas` for an initial live check, then remove `--limit` for eight HCPs × four questions × three modes. Set the key first. The runner records the configured model, HCP ID, question, timestamp, active source versions, actual output, context, citations and decision. It refuses to continue if the active corpus changes. It does not store evaluation chats as HCP memory and disables live PubMed search for the comparison.
+Run `python -m evals.run --limit 2 --ragas` for an initial live check, then remove `--limit` for eight HCPs × five questions × three modes. The first case is "What is CAMZYOS approved for in Germany?" Set the key first. The runner records the configured model, HCP ID, question, timestamp, active source versions, actual output, context, citations and decision. It refuses to continue if the active corpus changes. It does not store evaluation chats as HCP memory and disables live PubMed search for the comparison.
 
 The three modes are generic model, document-only RAG, and contextual RAG. All use the same configured model and early policy checks. Document-only/contextual retrieval has identical source permissions; the contextual answer also receives the correct profile and interaction memory. Model calls are stochastic; repeat runs and report variability before claiming an improvement. The generic column is explicitly unverified evaluation output.
 

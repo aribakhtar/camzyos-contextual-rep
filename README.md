@@ -129,7 +129,7 @@ Use **Sources & updates** to upload a replacement or check the configured publis
 .venv\Scripts\python.exe -m evals.run --limit 2 --ragas
 ```
 
-The last command makes paid model calls and writes ignored `reports/comparison.jsonl`. A complete run covers eight profiles × four questions × three modes. RAGAS scores clinical claims against evidence; personalization is assessed separately. Report failures and abstentions alongside scores. See [evaluation guide](docs/evaluation.md).
+The last command makes paid model calls and writes ignored `reports/comparison.jsonl`. A complete run covers eight profiles × five questions × three modes, starting with the approved-indication question. RAGAS scores clinical claims against evidence; personalization is assessed separately. Report failures and abstentions alongside scores. See [evaluation guide](docs/evaluation.md).
 
 The German Fachinformation currently remains staged because its columns, hyphenation and diagrams need further extraction review. The local active corpus uses the checked EMA SmPC prose, with structured pages excluded. Hospital/payer evidence and explicit account affiliations have not been supplied. These are visible content gaps, not invented context.
 

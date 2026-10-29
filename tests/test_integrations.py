@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from camzyos import engine, graph
+from camzyos import engine, graph, retrieval
 
 
 def test_handoff_is_short_and_does_not_dump_profile():
@@ -73,6 +73,15 @@ def test_embedding_sdk_constructor_and_dimensions(cfg, store, monkeypatch):
     monkeypatch.setattr(neo4j_graphrag.embeddings, "OpenAIEmbeddings", Embedder)
     assert graph.sync_documents(cfg, store) == 1
     assert seen == [cfg["embedding_dimensions"]]
+
+
+def test_empty_vector_index_is_reported_as_lexical_fallback(cfg, store, monkeypatch):
+    cfg.update(api_key="test-placeholder", neo4j_password="test-placeholder")
+    monkeypatch.setattr(graph, "vector_search", lambda *args: [])
+    evidence, backend, warnings = retrieval.retrieve(cfg, store, "monitoring information")
+    assert [e["id"] for e in evidence] == ["v1:0"]
+    assert backend == "BM25 (local eligible passages)"
+    assert any("no eligible passages" in warning for warning in warnings)
 
 
 @pytest.mark.parametrize("view", ["Chat", "Compare", "Sources & updates", "Context"])

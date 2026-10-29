@@ -2,7 +2,7 @@ import argparse
 import json
 
 from camzyos import graph
-from camzyos.ingest import fetch_public, process
+from camzyos.ingest import fetch_public, prepare_demo, process
 from camzyos.profiles import context, load_profiles
 from camzyos.settings import settings, sources
 from camzyos.store import Store
@@ -10,7 +10,7 @@ from camzyos.store import Store
 
 def main():
     parser = argparse.ArgumentParser(description="CAMZYOS prototype operations")
-    parser.add_argument("command", choices=["ingest", "sources", "activate", "fetch", "sync", "seed", "doctor"])
+    parser.add_argument("command", choices=["prepare", "ingest", "sources", "activate", "fetch", "sync", "seed", "doctor"])
     parser.add_argument("--source")
     parser.add_argument("--version")
     parser.add_argument("--note", default="")
@@ -22,7 +22,14 @@ def main():
     selected = [s for s in catalog if not args.source or s["id"] == args.source]
     if args.source and not selected:
         parser.error("Unknown source ID")
-    if args.command in {"ingest", "fetch"}:
+    if args.command == "prepare":
+        for result in prepare_demo(cfg, store, catalog):
+            print(json.dumps(result, ensure_ascii=True))
+        tables = load_profiles(cfg["workbook"])
+        print(json.dumps({"hcp_profiles": len(tables["HCP_Profile"]),
+                          "past_interactions": len(tables["HCP_Interactions"]),
+                          "active_chunks": len(store.chunks())}))
+    elif args.command in {"ingest", "fetch"}:
         for source in selected:
             try:
                 path = fetch_public(cfg, source) if args.command == "fetch" else None

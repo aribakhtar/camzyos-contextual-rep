@@ -10,7 +10,7 @@ Scope is CAMZYOS in Germany, HCP users, text chat only. UI polish, avatars and v
 
 ## Data provided
 
-The workbook is named `Copy of BMS_ContextualAIRep_Hackathon_Dataset_28th Oct 1.xlsx`. Its local location and the supplied `product information 1` PDF folder are configured in `.env`. The repository deliberately does not embed machine-specific paths or redistribute the raw materials.
+The workbook was supplied as `Copy of BMS_ContextualAIRep_Hackathon_Dataset_28th Oct 1.xlsx`. At the user's explicit request for clone portability, its unchanged bytes are committed as `assets/hcp_context.xlsx`; the supplied PDFs and added German Fachinformation are committed under `assets/product_information/`. `config.yaml` uses these relative paths, with optional `.env` overrides. A fresh clone rebuilds generated state with `python -m camzyos.cli prepare`; it does not need the original machine's folders. File hashes and original filenames are recorded in `assets/manifest.json`.
 
 The actual workbook contains eight synthetic HCPs, eight personality records and 41 interaction records. Tabs discussed include README, Data_Dictionary, HCP_Profile, Personality, HCP_Interactions, Approved_Content, Content_Chunks, Local_Market_Context, Publications, Updates, Evidence_Gaps, Question_Types and Guardrails. The narrative initially described 11 sheets; actual sheet names and rows control import, rather than that count.
 

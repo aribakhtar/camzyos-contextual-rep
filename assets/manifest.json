@@ -1,0 +1,65 @@
+[
+  {
+    "path": "hcp_context.xlsx",
+    "original_filename": "Copy of BMS_ContextualAIRep_Hackathon_Dataset_28th Oct 1.xlsx",
+    "sha256": "02c0b9128ab3201a63978af2c6912e32b73f6bf8f0b54e4be292407cd8103be7",
+    "bytes": 64340,
+    "origin": "User-supplied synthetic HCP workbook"
+  },
+  {
+    "path": "product_information/214998s010lbl.pdf",
+    "original_filename": "214998s010lbl.pdf",
+    "sha256": "2062a782ca0a65eab246383f10213fd38f4003f6b8b2f00856b88ba37a45a157",
+    "bytes": 1064677,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/camzyos-epar-medicine-overview_en.pdf",
+    "original_filename": "camzyos-epar-medicine-overview_en.pdf",
+    "sha256": "178ca9385970536552f0cb84ab14d133c38d094d470b3fcfa58660519717e78f",
+    "bytes": 103973,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/camzyos-epar-procedural-steps-taken-scientific-information-after-authorisation-archive_en.pdf",
+    "original_filename": "camzyos-epar-procedural-steps-taken-scientific-information-after-authorisation-archive_en.pdf",
+    "sha256": "9eca6b4fb6ed55f7d5c66b0e563ea3f4d2d9ffaa321825c7a5bdc630720f9b50",
+    "bytes": 109785,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/camzyos-epar-procedural-steps-taken-scientific-information-after-authorisation_en.pdf",
+    "original_filename": "camzyos-epar-procedural-steps-taken-scientific-information-after-authorisation_en.pdf",
+    "sha256": "afa2c49249352623447304222b60fdba78b2c3993f84a1dda505619d035e4e8d",
+    "bytes": 150374,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/camzyos-epar-product-information_en.pdf",
+    "original_filename": "camzyos-epar-product-information_en.pdf",
+    "sha256": "9132b2e8e8aaa16319c50ba4cee221a3197217762e259ff316f0a88969d8e68f",
+    "bytes": 489922,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/camzyos-epar-risk-management-plan_en.pdf",
+    "original_filename": "camzyos-epar-risk-management-plan_en.pdf",
+    "sha256": "1945d1e660324dee256117c0a4cd214a6f2853c87d67c1e2e10bfd57cfbe907f",
+    "bytes": 10959130,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/pi_camzyos.pdf",
+    "original_filename": "pi_camzyos.pdf",
+    "sha256": "86cadf8959582633795bdbb424027b9068596c2ad14df70b52b5db3fcd3ab4a7",
+    "bytes": 1116940,
+    "origin": "User-supplied CAMZYOS PDF folder"
+  },
+  {
+    "path": "product_information/camzyos-fachinformation_de.pdf",
+    "original_filename": "camzyos-fachinformation_de.pdf",
+    "sha256": "14e0fa043a511ba7fc118b52e8439018685ea56d72da5db25c3a2541f0e8c376",
+    "bytes": 300678,
+    "origin": "https://fi.b-ms.de/camzyos"
+  }
+]

@@ -6,6 +6,26 @@ from pathlib import Path
 import httpx
 
 from camzyos.documents import digest, extract, soft_chunks
+from camzyos.settings import ROOT
+
+
+def prepare_demo(cfg, store, catalog):
+    """Rebuild the bundled demo; only the exact previously reviewed version activates."""
+    if not cfg["workbook"].is_file():
+        raise FileNotFoundError("The configured HCP workbook is missing.")
+    results = [process(cfg, store, source) for source in catalog]
+    if any(r["status"] == "missing" for r in results):
+        raise FileNotFoundError("One or more configured PDFs are missing; see assets/product_information.")
+    reviews = json.loads((ROOT / "assets/demo_review.json").read_text(encoding="utf-8"))["versions"]
+    current = {r["version"] for r in results}
+    for version in store.versions():
+        for review in reviews:
+            if (version["id"] in current and version["id"] == review["version_id"]
+                    and version["hash"] == review["sha256"]
+                    and version["source_id"] == review["source_id"] and version["status"] == "staged"):
+                store.activate(version["id"], review["note"])
+                next(r for r in results if r["version"] == version["id"])["status"] = "active"
+    return results
 
 
 def process(cfg, store, source, path=None):

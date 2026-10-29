@@ -4,46 +4,67 @@ A Streamlit prototype for personalized CAMZYOS information for HCPs in Germany. 
 
 **Current state:** runnable locally, with deterministic tests and live source checks. Add your API key for generation, embeddings, Graphiti extraction and RAGAS scoring. No live answer-quality improvement is claimed yet. See [verification and limitations](docs/status.md).
 
-## Run on this machine
+## Clone and run
 
-The local `.env`, Python environment and portable Neo4j have already been prepared. The workbook and original PDF folder are referenced by `.env`; they are not uploaded to GitHub.
+**The inputs are included in Git:** [assets/hcp_context.xlsx](assets/hcp_context.xlsx) is the original workbook, and [assets/product_information](assets/product_information) contains all seven supplied PDFs plus the downloaded German Fachinformation. You do not need the original Desktop/Downloads folders. See [asset provenance and workbook usage](assets/README.md).
 
-1. Add `OPENAI_API_KEY` to `.env`. Keep the existing Neo4j password. Model names and retrieval options are in `config.yaml`.
-2. From this repository in PowerShell:
+Use Python 3.13 for the locked environment. Clone this private repo using your GitHub access:
 
-```powershell
-.venv\Scripts\python.exe scripts/local_neo4j.py start
-.venv\Scripts\python.exe -m camzyos.cli doctor
-.venv\Scripts\python.exe -m camzyos.cli sync
-.venv\Scripts\python.exe -m camzyos.cli seed
-.venv\Scripts\python.exe -m streamlit run app.py
+```shell
+git clone https://github.com/aribakhtar/camzyos-contextual-rep.git
+cd camzyos-contextual-rep
 ```
 
-Open http://127.0.0.1:8501. Use `anna.weber@example-clinic.de` or another supplied HCP email. `sync` embeds active documents; `seed` imports the eight supplied synthetic contexts into isolated Graphiti groups. Both use the configured model API and incur usage. Repeating an unchanged seed skips its existing episode.
-
-Without a key, profile loading, lexical retrieval previews, deterministic handoff rules, source review and update staging work. The app explicitly labels previews as passages, not generated medical answers.
-
-## Fresh installation
-
-Python 3.13 was tested; Python 3.11+ is supported by the project declaration.
+On Windows PowerShell:
 
 ```powershell
 py -3.13 -m venv .venv
-.venv\Scripts\python.exe -m pip install -c requirements.lock -e '.[dev,eval]'
+.\.venv\Scripts\Activate.ps1
+python -m pip install -c requirements.lock -e '.[dev,eval]'
 Copy-Item .env.example .env
 ```
 
-Set `WORKBOOK_PATH`, `PDF_DIR`, `OPENAI_API_KEY` and a non-empty `NEO4J_PASSWORD` in `.env`. Absolute input paths avoid working-directory ambiguity. Provide an existing Neo4j database, or use the optional Windows helper:
+On macOS/Linux:
 
-```powershell
-.venv\Scripts\python.exe scripts/local_neo4j.py setup
-.venv\Scripts\python.exe scripts/local_neo4j.py start
-.venv\Scripts\python.exe -m camzyos.cli ingest
-.venv\Scripts\python.exe -m camzyos.cli fetch --source de_fachinformation
-.venv\Scripts\python.exe -m streamlit run app.py
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -c requirements.lock -e '.[dev,eval]'
+cp .env.example .env
 ```
 
-The helper downloads a private Java/Neo4j runtime into ignored `.runtime/`; it does not install a Windows service or change global Java. On a fresh installation, sources remain **staged**. Review them in **Sources & updates**, enter an accurate review note, and activate only eligible, usable versions. Prototype eligibility is not sponsor approval.
+Create `.env` only on a fresh clone; preserve an existing file containing your key. Set `OPENAI_API_KEY` and a `NEO4J_PASSWORD` of at least eight characters. Input paths already default to the committed assets in `config.yaml`; optional `.env` overrides can be relative to the repository root or absolute.
+
+Start Neo4j with Docker Compose (Windows/macOS/Linux), or point `.env` at an existing Neo4j instance:
+
+```shell
+docker compose up -d
+```
+
+On Windows without Docker, the included helper is an alternative:
+
+```shell
+python scripts/local_neo4j.py setup
+python scripts/local_neo4j.py start
+```
+
+Use one database option. The helper keeps Java/Neo4j under ignored `.runtime/`, with no Windows service or global Java changes. Docker uses a local named volume. Wait until the following doctor command reports `neo4j_connected: true` before syncing/seeding.
+
+From the activated environment, rebuild and run the pipeline:
+
+```shell
+python -m camzyos.cli prepare
+python -m camzyos.cli doctor
+python -m camzyos.cli sync
+python -m camzyos.cli seed
+python -m streamlit run app.py
+```
+
+`prepare` works offline without secrets: it parses the bundled PDFs and recreates the initial active EMA corpus only when the complete source hash and pipeline-version ID match [the recorded prototype review](assets/demo_review.json). Changed/new versions remain staged for review; previously withdrawn versions are not restored. Prototype eligibility is not sponsor approval. `ingest` remains the stage-only command for ordinary document updates.
+
+`sync` embeds active documents. `seed` imports the eight supplied HCP contexts into isolated Graphiti groups. Both use the configured API and incur usage; repeating an unchanged seed skips its existing episode. Open http://127.0.0.1:8501 and use `anna.weber@example-clinic.de` or another workbook email.
+
+Without a key, profile loading, lexical retrieval previews, deterministic handoff rules, source review and update staging work. The app labels previews as passages, not generated medical answers. Generated databases, embeddings and runtime packages are rebuilt on the new machine; credentials and real chat histories are not distributed with the repo.
 
 ## What is implemented
 
@@ -98,4 +119,4 @@ The German Fachinformation currently remains staged because its columns, hyphena
 - [PDF review](docs/document-review.md): supplied corpus review.
 - [Implementation status](docs/status.md): verified behavior and remaining limits.
 
-Email entry is synthetic-demo identity selection, not authentication. Source administration is a local reviewer view. Keep this prototype on localhost with the synthetic dataset until verified authentication and application roles are implemented. `.env`, raw inputs, databases, transcripts and reports are ignored by Git.
+Email entry is synthetic-demo identity selection, not authentication. Source administration is a local reviewer view. Keep this prototype on localhost with the synthetic dataset until verified authentication and application roles are implemented. `assets/` is committed; `.env`, generated `data/`, runtime downloads, transcripts and reports are ignored by Git.

@@ -1,0 +1,11 @@
+{
+  "scope": "Reproduce the reviewed prototype snapshot; not sponsor compliance approval. Changed versions require a new review.",
+  "versions": [
+    {
+      "source_id": "eu_smpc",
+      "version_id": "eu_smpc:9132b2e8e8aaa163:c72eb750",
+      "sha256": "9132b2e8e8aaa16319c50ba4cee221a3197217762e259ff316f0a88969d8e68f",
+      "note": "Prototype review: downloaded EMA bytes match the supplied PDF on 2026-10-30; SmPC pages only. Diagrams/tables and their flagged pages remain excluded. No sponsor compliance approval claimed."
+    }
+  ]
+}

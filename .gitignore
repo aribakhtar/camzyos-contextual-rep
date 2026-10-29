@@ -8,6 +8,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+# Generated state only. The supplied workbook and PDFs are committed under assets/.
 data/
 reports/
 .streamlit/secrets.toml

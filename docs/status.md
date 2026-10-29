@@ -30,3 +30,13 @@ No clinical quality score or improvement percentage has been invented. A model-b
 9. Graphiti is optional at runtime: failures produce a visible warning and fall back to the supplied profile/history. Source retrieval has a visible BM25 fallback. This preserves a usable demo without presenting a fallback as a successful graph/vector call.
 
 See [the evaluation guide](evaluation.md) for what to measure next and [the complete product context](context.md) for the agreed scope.
+
+## Portability update
+
+The supplied workbook and all seven supplied PDFs are now committed in `assets/`, alongside the added German Fachinformation. Checksums confirm the original bytes are preserved. Defaults use paths relative to the repository root; the existing local `.env` now points to those assets and its credentials were preserved.
+
+`python -m camzyos.cli prepare` reconstructs generated state from the bundled inputs and restores only the exact reviewed EMA prototype version. A separate checkout exported from Git's index, with no `.env` and no original-machine path overrides, successfully loaded eight HCPs/41 interactions and rebuilt 20 active passages. Four new portability tests bring the local suite to **43 passing tests**, including changed-file review rejection and withdrawal preservation.
+
+The README now includes clone/install/prepare/sync/seed/run commands for Windows and macOS/Linux. `compose.yaml` provides an optional Neo4j container; its official amd64/arm64 image tag was verified, while local execution continues to use the already-running portable Windows Neo4j. CI validates Compose configuration syntax.
+
+The user has now supplied an API key locally. These portability checks do not constitute a live clinical quality benchmark or a completed Graphiti seed; the initial live-evaluation limitations above still apply.

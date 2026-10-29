@@ -4,7 +4,7 @@ Reviewed/fetched during the initial build on 30 October 2026. Runtime eligibilit
 
 ## Supplied material
 
-The workbook contributes synthetic HCP identities, preferences, personality, interaction history, already-received content, review flags and guardrail requirements. The seven supplied PDFs are listed in [the corpus review](document-review.md) and `sources.yaml`. Original files remain local. The build's hash/status inventory is in [source-inventory.json](source-inventory.json).
+The workbook contributes synthetic HCP identities, preferences, personality, interaction history, already-received content, review flags and guardrail requirements. The seven supplied PDFs are listed in [the corpus review](document-review.md) and `sources.yaml`. At the user's request, all supplied files and the added German PDF are now committed under [assets/](../assets/README.md), with original-byte checksums in [the asset manifest](../assets/manifest.json). The initial build's hash/status inventory is in [source-inventory.json](source-inventory.json).
 
 ## Added or independently fetched public material
 
@@ -32,6 +32,7 @@ PubMed output includes canonical URLs, authors, journal, year, DOI when supplied
 | [RAGAS faithfulness](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/) | Evidence-support evaluation semantics; not a substitute for clinical or personalization review. |
 | [Streamlit AppTest](https://docs.streamlit.io/develop/api-reference/app-testing) | Programmatic UI-flow testing, including identity changes and sidebar views. |
 | [Neo4j distributions](https://neo4j.com/deployment-center/) and [Eclipse Adoptium API](https://api.adoptium.net/) | Optional portable local Neo4j/Java runtime. Java archive checksum is checked against publisher metadata. |
+| [Official Neo4j Docker image](https://hub.docker.com/_/neo4j) | Cross-platform database option in `compose.yaml`; the `2026.10.1-community` tag was verified through Docker Hub and provides amd64/arm64 images. |
 
 The earlier repository search and every alternative's contribution/limitations are retained in [reuse-research.md](reuse-research.md), including Mem0, Memobase, Hindsight, LibreChat, LangChain memory-agent and other investigated projects. These are technical design references, not medical evidence.
 

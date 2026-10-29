@@ -11,6 +11,10 @@ jobs:
           cache: pip
       - run: pip install -c requirements.lock -e '.[dev,eval]'
       - run: ruff check .
+      - name: Validate portable database configuration
+        run: docker compose config --quiet
+        env:
+          NEO4J_PASSWORD: ci-config-check
       - run: pytest -q
         env:
           GRAPHITI_TELEMETRY_ENABLED: 'false'

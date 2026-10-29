@@ -1,0 +1,92 @@
+# Eligibility here is for this research prototype, NOT company compliance approval.
+# New or changed bytes are staged until activated. Keep real review records in version notes.
+sources:
+  - id: eu_smpc
+    file: camzyos-epar-product-information_en.pdf
+    title: CAMZYOS EU product information — SmPC
+    url: https://www.ema.europa.eu/en/documents/product-information/camzyos-epar-product-information_en.pdf
+    publisher: EMA
+    market: EU
+    audience: HCP
+    kind: label
+    language: en
+    pages: [2, 24]
+    # Figures/tables need separate review. Exclude these pages from text-only answers.
+    review_pages: [4, 5, 6, 7]
+    eligible: true
+    contribution: EU authorised product information; professional sections only.
+  - id: de_fachinformation
+    file: camzyos-fachinformation_de.pdf
+    title: CAMZYOS German Fachinformation
+    url: https://fi.b-ms.de/camzyos
+    publisher: Bristol Myers Squibb
+    market: DE
+    audience: HCP
+    kind: label
+    language: de
+    review_pages: [1, 2, 3]
+    eligible: true
+    contribution: German professional product information; staged pending multi-column text and diagram review.
+  - id: eu_rmp
+    file: camzyos-epar-risk-management-plan_en.pdf
+    title: CAMZYOS EU risk management plan
+    url: https://www.ema.europa.eu/en/documents/rmp/camzyos-epar-risk-management-plan_en.pdf
+    publisher: EMA / Bristol Myers Squibb
+    market: EU
+    audience: HCP
+    kind: risk_management
+    language: en
+    eligible: false
+    contribution: Candidate safety and evidence-gap background; requires content review.
+  - id: eu_overview
+    file: camzyos-epar-medicine-overview_en.pdf
+    title: CAMZYOS EMA public overview
+    url: https://www.ema.europa.eu/en/documents/overview/camzyos-epar-medicine-overview_en.pdf
+    publisher: EMA
+    market: EU
+    audience: public
+    kind: overview
+    language: en
+    eligible: false
+    contribution: Public background; excluded from default HCP retrieval.
+  - id: eu_changes
+    file: camzyos-epar-procedural-steps-taken-scientific-information-after-authorisation_en.pdf
+    title: EMA regulatory procedure history
+    publisher: EMA
+    market: EU
+    audience: HCP
+    kind: history
+    language: en
+    eligible: false
+    contribution: Historical change discovery, not current treatment instructions.
+  - id: eu_changes_archive
+    file: camzyos-epar-procedural-steps-taken-scientific-information-after-authorisation-archive_en.pdf
+    title: EMA archived procedure history
+    publisher: EMA
+    market: EU
+    audience: HCP
+    kind: history
+    language: en
+    eligible: false
+    contribution: Historical regulatory context; excluded from current answers.
+  - id: us_fda
+    file: 214998s010lbl.pdf
+    title: CAMZYOS US FDA prescribing information
+    publisher: FDA
+    market: US
+    audience: HCP
+    kind: label
+    language: en
+    eligible: false
+    contribution: Negative market-filter test; not evidence for German answers.
+  - id: us_bms
+    file: pi_camzyos.pdf
+    title: CAMZYOS US prescribing information
+    publisher: Bristol Myers Squibb
+    market: US
+    audience: HCP
+    kind: label
+    language: en
+    eligible: false
+    contribution: Negative market-filter test; not evidence for German answers.
+

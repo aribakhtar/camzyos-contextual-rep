@@ -22,6 +22,7 @@ class Store:
               CREATE TABLE IF NOT EXISTS chats(id INTEGER PRIMARY KEY, hcp_id TEXT, created TEXT, info TEXT);
               CREATE TABLE IF NOT EXISTS deliveries(hcp_id TEXT, version_id TEXT, created TEXT,
                 PRIMARY KEY(hcp_id, version_id));
+              CREATE TABLE IF NOT EXISTS conversation_summaries(hcp_id TEXT PRIMARY KEY, updated TEXT, info TEXT);
             """)
             if "source_snapshot" not in {r["name"] for r in db.execute("PRAGMA table_info(versions)")}:
                 db.execute("ALTER TABLE versions ADD COLUMN source_snapshot TEXT")
@@ -102,14 +103,57 @@ class Store:
         return [{**json.loads(r["info"]), "id": r["id"], "version_id": r["version_id"],
                  "source": json.loads(r["source_snapshot"])} for r in rows
                 if eligible(json.loads(r["source_info"]), account_id, allow_account=all_accounts)
-                and within_pages(json.loads(r["info"]), json.loads(r["source_info"]))]
+                and eligible(json.loads(r["source_snapshot"]), account_id, allow_account=all_accounts)
+                and within_pages(json.loads(r["info"]), json.loads(r["source_info"]))
+                and within_pages(json.loads(r["info"]), json.loads(r["source_snapshot"]))]
 
     def history(self, hcp_id):
         if not hcp_id:
             return []
         with self.db() as db:
-            rows = db.execute("SELECT info FROM chats WHERE hcp_id=? ORDER BY id DESC LIMIT 8", (hcp_id,)).fetchall()
+            rows = db.execute("SELECT info FROM chats WHERE hcp_id=? ORDER BY id DESC", (hcp_id,)).fetchall()
         return [json.loads(r["info"]) for r in reversed(rows)]
+
+    def conversation_history(self, hcp_id):
+        """All consented turns with stable message IDs and UTC timestamps; no retention truncation."""
+        with self.db() as db:
+            rows = db.execute("SELECT id,created,info FROM chats WHERE hcp_id=? ORDER BY id", (hcp_id,)).fetchall()
+        messages = []
+        for row in rows:
+            record = json.loads(row["info"])
+            for role, field in (("user", "question"), ("assistant", "answer")):
+                if field not in record:
+                    continue
+                message = {"id": record.get(field + "_id", f"saved:{row['id']}:{role}"),
+                    "timestamp": record.get(field + "_timestamp", row["created"]),
+                    "hcp_id": hcp_id, "role": role, "content": record[field]}
+                if role == "assistant":
+                    message["policy_route"] = record.get("policy_route")
+                    message["result"] = {"answer": record[field], "decision": record.get("decision", "answer"),
+                        "citations": record.get("citations", []), "context_used": {}, "warnings": [],
+                        "limitations": [], "handoff": record.get("handoff"), "policy_route": record.get("policy_route")}
+                messages.append(message)
+        return messages
+
+    def conversation_state(self, hcp_id):
+        with self.db() as db:
+            row = db.execute("SELECT info FROM conversation_summaries WHERE hcp_id=?", (hcp_id,)).fetchone()
+        return json.loads(row["info"]) if row else {}
+
+    def save_conversation_state(self, hcp_id, state, consent=False):
+        if hcp_id and consent:
+            if state.get("hcp_id") != hcp_id:
+                raise ValueError("Cannot save another HCP's working summary.")
+            # Turning storage on later does not grant retrospective storage consent.
+            recorded = {m["id"] for m in self.conversation_history(hcp_id)}
+            covered = state.get("covered_message_ids", [])
+            if len(covered) != state.get("covered_count", 0) or not set(covered) <= recorded:
+                return False
+            with self.db() as db:
+                db.execute("INSERT INTO conversation_summaries VALUES(?,?,?) ON CONFLICT(hcp_id) DO UPDATE "
+                           "SET updated=excluded.updated,info=excluded.info", (hcp_id, now(), json.dumps(state)))
+            return True
+        return False
 
     def remember(self, hcp_id, record, consent=False):
         if hcp_id and consent:
@@ -121,6 +165,7 @@ class Store:
         with self.db() as db:
             db.execute("DELETE FROM chats WHERE hcp_id=?", (hcp_id,))
             db.execute("DELETE FROM deliveries WHERE hcp_id=?", (hcp_id,))
+            db.execute("DELETE FROM conversation_summaries WHERE hcp_id=?", (hcp_id,))
 
     def delivered(self, hcp_id, version, consent=False):
         if not hcp_id or not consent:

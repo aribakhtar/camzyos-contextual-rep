@@ -2,9 +2,19 @@
 
 A Streamlit prototype for personalized CAMZYOS information for HCPs in Germany. It combines the supplied HCP workbook, Graphiti memory, and separately controlled document retrieval. Every generated clinical claim must reference retrieved evidence; unsupported requests produce a handoff draft.
 
+**New to the product?** Start with the [product flow and Streamlit walkthrough](docs/product-walkthrough.md):
+what happens before/during chat, what each view does, and a five-minute demonstration sequence.
+
 **Current state:** runnable locally, with deterministic tests and live source checks. Add your API key for generation, embeddings, Graphiti extraction and RAGAS scoring. No live answer-quality improvement is claimed yet. See [verification and limitations](docs/status.md).
 
+**All-PDF testing:** all eight PDFs now have a separate inspection vector index: 432 passages across 203 pages. Open **Sources & updates → All-PDF testing index**, or run `python -m camzyos.cli index-all` followed by `python -m camzyos.cli doctor --strict --all-documents`. This supports testing excluded/staged documents without authorizing them for clinical answers. [Commands, code map and coverage](docs/all-pdf-testing.md).
+
 ## Clone and run
+
+Conversation history is retained with timestamps; automatic summaries only compact the model's working
+context. Clear/forget controls remain explicit user actions, and persistence remains opt-in. Clinical
+retrieval now reranks up to 20 eligible candidates before selecting six passages. See
+[conversation retention, consent and reranking](docs/conversation-and-reranking.md) for settings and limits.
 
 **The inputs are included in Git:** [assets/hcp_context.xlsx](assets/hcp_context.xlsx) is the original workbook, and [assets/product_information](assets/product_information) contains all seven supplied PDFs plus the downloaded German Fachinformation. You do not need the original Desktop/Downloads folders. See [asset provenance and workbook usage](assets/README.md).
 
@@ -67,7 +77,8 @@ From the activated environment, prepare the document index **before starting cha
 
 ```shell
 python -m camzyos.cli build
-python -m camzyos.cli doctor
+python -m camzyos.cli index-all
+python -m camzyos.cli doctor --strict --all-documents
 python -m camzyos.cli seed
 python -m streamlit run app.py
 ```
@@ -84,13 +95,30 @@ From the repo folder, activate the same Python environment, start the database u
 
 For Docker, `docker compose down` stops the database while preserving its named data volume. Changing `NEO4J_PASSWORD` in `.env` later does not change a password already stored in an existing database. If login fails, use the password set during initial setup. A fresh clone on another machine needs its own `.env` and the full first-run pipeline above; it does not inherit your saved conversations.
 
+For the portable Windows database, run `python scripts/local_neo4j.py stop --timeout 60`.
+The helper sends Ctrl-C to its own hidden console and waits for Neo4j to exit, preserving its data.
+It checks process identity before signaling and refuses legacy or stale ownership records; it never force-kills.
+Stop foreground Streamlit with Ctrl-C in the terminal where it is running.
+
 If PowerShell blocks `Activate.ps1`, run commands with `.\.venv\Scripts\python.exe` instead of `python`; activation is only a convenience. If Docker reports that it cannot connect, start Docker Desktop before running Compose. The optional database browser is http://127.0.0.1:7474 (user `neo4j`, your database password); the chatbot itself is on port 8501.
 
 Without a key, profile loading, deterministic handoff rules and offline source preparation remain available. Clinical answers require the model API and a ready document index. Chat never parses or embeds document files; it only embeds the current search query. Generated databases, embeddings and runtime packages are rebuilt on the new machine; credentials and real chat histories are not distributed with the repo.
 
 ## Test it in Streamlit
 
-1. In **Sources & updates**, check readiness or click **Build bundled document index**. Uploading a replacement automatically parses, chunks and indexes that version. Review it, then click **Activate reviewed version**. The previous valid version stays active if indexing fails.
+For a preparation-first Windows launch, start the database and run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1
+```
+
+This waits for the configured database, runs `build`, requires `doctor --strict` to pass,
+seeds/reuses HCP memory, then starts Streamlit. Add `-PrepareOnly` to finish the pipeline
+without starting the UI. Chat input stays disabled until its index and API key are ready.
+See [the testing workflow](docs/testing-workflow.md) for application usage, baseline runs,
+custom case files and held-out evaluation.
+
+1. In **Sources & updates**, check readiness or click **Build eligible clinical document index**. Uploading a replacement automatically parses, chunks and indexes that version. Review it, then click **Activate reviewed version**. The previous valid version stays active if indexing fails.
 2. Open **Evaluation**, choose a source-pinned test case and select **Retrieval only** or **Contextual answer**. Keep **Score with RAGAS** checked and click **Run evaluation**. Inspect the reference, ranked passages, actual search query, scores and errors; download the JSON report.
 3. Use **Compare** for the same-model generic/document-only/contextual answer comparison. Evaluation never writes HCP memory, and PubMed is disabled for comparable runs.
 

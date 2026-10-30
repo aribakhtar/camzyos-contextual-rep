@@ -113,10 +113,11 @@ def test_empty_vector_results_never_fall_back_to_lexical_only(cfg, store, monkey
 
 
 @pytest.mark.parametrize("view", ["Chat", "Compare", "Evaluation", "Sources & updates", "Context"])
-def test_streamlit_views_and_identity_reset(cfg, tables, source, monkeypatch, tmp_path, view):
+def test_streamlit_views_and_identity_reset(cfg, tables, source, store, indexed, monkeypatch, tmp_path, view):
     settings_module = importlib.import_module("camzyos.settings")
     cfg["workbook"] = tmp_path / "exists.xlsx"
     cfg["workbook"].touch()
+    cfg["api_key"] = "test-placeholder"
     monkeypatch.setattr(settings_module, "settings", lambda: cfg)
     monkeypatch.setattr(settings_module, "sources", lambda cfg: [source])
     monkeypatch.setattr(engine.profiles, "load_profiles", lambda path: tables)

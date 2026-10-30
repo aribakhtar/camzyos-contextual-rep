@@ -10,6 +10,8 @@ Scope is CAMZYOS in Germany, HCP users, text chat only. UI polish, avatars and v
 
 ## Data provided
 
+The user subsequently required every PDF to be indexed for full-corpus testing. The separate inspection pipeline now retains all 203 pages / 432 passages from the eight PDFs, including short/structured, staged, public, historical and US text. Clinical retrieval still enforces the original eligibility, consent, and HCP/account boundaries. See [all-PDF testing](all-pdf-testing.md).
+
 The workbook was supplied as `Copy of BMS_ContextualAIRep_Hackathon_Dataset_28th Oct 1.xlsx`. At the user's explicit request for clone portability, its unchanged bytes are committed as `assets/hcp_context.xlsx`; the supplied PDFs and added German Fachinformation are committed under `assets/product_information/`. `config.yaml` uses these relative paths, with optional `.env` overrides. A fresh clone rebuilds generated state with `python -m camzyos.cli prepare`; it does not need the original machine's folders. File hashes and original filenames are recorded in `assets/manifest.json`.
 
 The actual workbook contains eight synthetic HCPs, eight personality records and 41 interaction records. Tabs discussed include README, Data_Dictionary, HCP_Profile, Personality, HCP_Interactions, Approved_Content, Content_Chunks, Local_Market_Context, Publications, Updates, Evidence_Gaps, Question_Types and Guardrails. The narrative initially described 11 sheets; actual sheet names and rows control import, rather than that count.
@@ -38,6 +40,13 @@ Three information categories must remain distinguishable:
 Off-label questions, advice for an individual patient, unsupported comparative claims and other-HCP information require refusal/handoff. Workbook rules also identify Pharmacovigilance, product-quality and human-request routes. A handoff explains the reason and offers a short question/conversation summary for review. The prototype creates a downloadable draft; it does not contact anyone.
 
 New conversation storage and Graphiti writes need a separate opt-in. Existing proactive-outbound consent does not authorize transcript storage. No proactive outreach is implemented. Updating documents must not imply permission to notify HCPs.
+
+Conversation history must not be automatically truncated. Keep original messages and timestamps;
+summarize only the working context when its token budget approaches capacity. Clearing/forgetting is
+an explicit user action. Storage remains opt-in, including summaries of earlier turns. Graphiti's
+retrieved facts supplement the transcript; Graphiti does not manage the prompt window. Clinical
+document candidates are reranked for relevance after eligibility filtering. Current implementation,
+consent behavior and configuration are documented in [conversation and reranking](conversation-and-reranking.md).
 
 ## Technology choices and why
 

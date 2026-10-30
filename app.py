@@ -4,7 +4,7 @@ import json
 
 import streamlit as st
 
-from camzyos import graph, profiles
+from camzyos import conversation, graph, inspection, profiles
 from camzyos.engine import ask
 from camzyos.evaluation import cases, evaluate
 from camzyos.ingest import build, fetch_public, process_document, publish_version
@@ -33,10 +33,23 @@ with st.sidebar:
     email = st.text_input("HCP email", value="anna.weber@example-clinic.de")
     hcp = profiles.resolve_hcp(tables, email)
     identity = hcp["hcp_id"] if hcp else "unknown:" + email.strip().casefold()
+    st.session_state.setdefault("hcp_sessions", {})
     if st.session_state.get("identity") != identity:
+        # Switching identity hides the other transcript; it does not delete it.
+        sessions = st.session_state.get("hcp_sessions", {})
+        previous = st.session_state.get("identity")
+        if previous:
+            sessions[previous] = {key: st.session_state.get(key, default) for key, default in
+                (("messages", []), ("conversation_state", {}), ("history_loaded", False))}
         st.session_state.clear()
+        st.session_state.hcp_sessions = sessions
         st.session_state.identity = identity
-        st.session_state.messages = []
+        restored = sessions.get(identity, {})
+        st.session_state.messages = restored.get("messages", [])
+        st.session_state.conversation_state = restored.get("conversation_state", {})
+        st.session_state.history_loaded = restored.get("history_loaded", False)
+    st.session_state.setdefault("conversation_state", {})
+    st.session_state.setdefault("history_loaded", False)
     if hcp:
         st.success(f"Welcome, {hcp['name']}")
         st.caption(f"{hcp.get('specialty')} · {hcp.get('workplace')}")
@@ -44,8 +57,15 @@ with st.sidebar:
         st.info("Email not found. General approved-content mode; no personal history.")
     persist = st.checkbox("Save my new conversations and memory", value=False, disabled=not bool(hcp))
     st.caption("Selected context is sent to your configured model. Storage is a separate opt-in.")
+    st.caption("Full conversation retained in this browser session. Enable saving to keep new turns after the session ends.")
     search = st.toggle("PubMed search", value=cfg["pubmed_enabled"], disabled=not bool(hcp))
     st.caption("Off disables live search; reviewed publications already imported remain available.")
+    if st.button("Clear this conversation"):
+        st.session_state.messages = []
+        st.session_state.conversation_state = {}
+        st.session_state.history_loaded = True
+        st.session_state.hcp_sessions.pop(identity, None)
+        st.success("Current conversation cleared. Saved history and Graphiti memory are unchanged.")
     if hcp and st.button("Forget saved chat memory"):
         store.delete_history(hcp["hcp_id"])
         try:
@@ -54,6 +74,9 @@ with st.sidebar:
         except Exception:
             st.warning("Local chat memory removed. Graphiti was unreachable; graph deletion is incomplete.")
         st.session_state.messages = []
+        st.session_state.conversation_state = {}
+        st.session_state.history_loaded = True
+        st.session_state.hcp_sessions.pop(identity, None)
     page = st.radio("View", ["Chat", "Compare", "Evaluation", "Sources & updates", "Context"])
     active_chunks = store.chunks(cfg['account_map'].get(hcp['hcp_id']) if hcp else None)
     readiness = graph.index_status(cfg, active_chunks)
@@ -73,6 +96,10 @@ def render(result, key):
         st.warning(warning)
     if result.get("retrieval_backend"):
         st.caption(result["retrieval_backend"])
+    if info := result.get("context_window"):
+        if info["summarized_messages"]:
+            st.caption(f"Earlier conversation summarized for context: {info['summarized_messages']} messages. "
+                       "The full transcript is retained.")
     if result.get("limitations"):
         st.info("\n".join(result["limitations"]))
     if result.get("evidence_gaps"):
@@ -114,7 +141,7 @@ elif page == "Sources & updates":
     st.caption("Prepare documents here before chat: parse → chunk → index → review → activate. "
                "Chat never parses or embeds document files.")
     st.json(readiness)
-    if st.button("Build bundled document index", disabled=not bool(cfg["api_key"])):
+    if st.button("Build eligible clinical document index", disabled=not bool(cfg["api_key"])):
         with st.spinner("Preparing bundled documents and checking the complete index..."):
             try:
                 st.session_state.build_status = build(cfg, store, catalog)
@@ -123,6 +150,50 @@ elif page == "Sources & updates":
                 st.error(f"Build incomplete ({type(exc).__name__}). Check configuration and retry.")
     st.dataframe([{k: s.get(k, "") for k in ("id", "title", "market", "audience", "eligible", "contribution")}
                   for s in catalog], hide_index=True)
+    with st.expander("All-PDF testing index", expanded=True):
+        st.caption("Search extracted text from every bundled PDF, including staged and excluded sources. "
+                   "These results are for inspection and testing; they do not enter chatbot answers.")
+        if st.button("Build all-PDF testing index", disabled=not bool(cfg["api_key"])):
+            with st.spinner("Indexing all PDFs; unchanged embeddings are reused..."):
+                try:
+                    inspection.build(cfg, catalog)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"All-PDF indexing incomplete ({type(exc).__name__}). Retry after fixing the cause.")
+        inspection_status = inspection.report(cfg, catalog)
+        if inspection_status["ready"]:
+            st.success(f"All-PDF index ready: {inspection_status['document_count']} PDFs, "
+                       f"{inspection_status['indexed_chunks']}/{inspection_status['expected_chunks']} passages")
+        else:
+            st.info("All-PDF testing index is missing, stale, or incomplete. Build it before corpus-wide tests.")
+        inspection_account = cfg["account_map"].get(hcp["hcp_id"]) if hcp else None
+        inspectable_ids = [s["id"] for s in catalog
+                           if not s.get("account_id") or s["account_id"] == inspection_account]
+        if inspection_status["documents"]:
+            st.dataframe([d for d in inspection_status["documents"] if d["source_id"] in inspectable_ids],
+                         hide_index=True)
+        with st.form("inspection_search"):
+            inspection_source = st.selectbox("PDF to inspect", [None] + inspectable_ids,
+                                             format_func=lambda sid: sid or "All PDFs")
+            inspection_query = st.text_input("Search PDF text for testing")
+            inspection_requested = st.form_submit_button("Search all-PDF testing index",
+                                                        disabled=not inspection_status["ready"] or not cfg["api_key"])
+        if inspection_requested and not inspection_query.strip():
+            st.info("Enter a question or phrase to inspect the PDF text.")
+        if inspection_requested and inspection_query.strip():
+            try:
+                inspection_result = inspection.search(cfg, catalog, inspection_query, inspection_source,
+                                                      account_id=inspection_account)
+                st.warning(inspection_result["limitation"])
+                for passage in inspection_result["retrieved_passages"]:
+                    st.caption(f"{passage['source']['title']} | PDF page {passage['page']} | "
+                               f"Layout review required: {passage['requires_review']}")
+                    st.code(passage["id"], language=None)
+                    st.text(passage["text"])
+                st.download_button("Download inspection results", json.dumps(inspection_result, ensure_ascii=False),
+                                   file_name="inspection.json", mime="application/json")
+            except Exception as exc:
+                st.error(f"Inspection retrieval failed ({type(exc).__name__}). No answer was generated.")
     selected = st.selectbox("Source", catalog, format_func=lambda s: s["title"])
     uploaded = st.file_uploader("Stage a replacement PDF", type=["pdf"])
     st.caption("Uploading starts parsing, chunking and indexing automatically and may use your model API. "
@@ -222,22 +293,41 @@ elif page == "Compare":
                 result = ask(cfg, store, tables, email, query, persist=False, search=False, mode=mode)
                 render(result, mode)
 else:
+    if hcp and persist and not st.session_state.history_loaded:
+        saved = store.conversation_history(hcp["hcp_id"])
+        known = {m["id"] for m in saved}
+        live = [m for m in st.session_state.messages if m.get("id") not in known]
+        st.session_state.messages = saved + live
+        if not live:
+            st.session_state.conversation_state = store.conversation_state(hcp["hcp_id"])
+        st.session_state.history_loaded = True
     if not st.session_state.messages:
         st.write(f"Hello, {hcp['name']}. What would you like to know about CAMZYOS?" if hcp
                  else "What would you like to know about CAMZYOS in Germany?")
     for i, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
+            if message.get("timestamp"):
+                st.caption(message["timestamp"])
             render(message["result"], i) if message["role"] == "assistant" else st.write(message["content"])
-    question = st.chat_input("Ask about CAMZYOS")
+    chat_ready = readiness["ready"] and bool(cfg["api_key"])
+    if not chat_ready:
+        st.info("Chat opens after document preparation is complete. Use Sources & updates to build the "
+                "eligible document index and configure the model API key.")
+    question = st.chat_input("Ask about CAMZYOS", disabled=not chat_ready)
     if question:
-        history = [{"role": m["role"], "content": m.get("content", m.get("result", {}).get("answer", ""))}
-                   for m in st.session_state.messages[-8:]]
-        if hcp and persist and not history:
-            history = store.history(hcp["hcp_id"])
-        st.session_state.messages.append({"role": "user", "content": question})
+        history = list(st.session_state.messages)
+        turn = conversation.message("user", question, identity)
+        st.session_state.messages.append(turn)
         with st.chat_message("user"):
+            st.caption(turn["timestamp"])
             st.write(question)
         with st.chat_message("assistant"), st.spinner("Checking context and evidence..."):
-            result = ask(cfg, store, tables, email, question, history, persist, search)
+            result = ask(cfg, store, tables, email, question, history, persist, search,
+                         conversation_state=st.session_state.conversation_state, turn=turn)
+            st.caption(result["timestamp"])
             render(result, len(st.session_state.messages))
-        st.session_state.messages.append({"role": "assistant", "result": result})
+        st.session_state.messages.append({"id": result["message_id"], "timestamp": result["timestamp"],
+            "hcp_id": identity, "role": "assistant", "content": result["answer"], "result": result})
+    if st.session_state.messages:
+        st.download_button("Download full conversation", json.dumps(st.session_state.messages, ensure_ascii=False,
+            indent=2, default=str), file_name="conversation.json", mime="application/json")

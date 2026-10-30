@@ -5,6 +5,15 @@ embedding_dimensions: 1536
 graphiti_enabled: true
 max_output_tokens: 2200
 retrieval_top_k: 6
+retrieval_candidate_k: 20
+reranking_enabled: true
+# Application working budget (not the model's maximum capacity). Raw transcripts are retained.
+context_window_tokens: 32000
+context_safety_margin_tokens: 1024
+conversation_compact_at: 0.8
+conversation_summary_tokens: 1200
+conversation_summary_batch_tokens: 6000
+conversation_recent_messages: 6
 chunk_target_chars: 1600
 chunk_overlap_sentences: 1
 pubmed_enabled: false

@@ -44,7 +44,9 @@ At question time, early rules check privacy, adverse-event reports and other han
 The classifier receives the current question and own conversation/working summary, then produces
 one retrieval query. It does not receive HCP personality or recalled Graphiti facts. The query is
 embedded and used alongside BM25; reciprocal rank fusion combines candidates, followed by LLM
-relevance reranking. Failed reranking reports a warning and keeps hybrid order. Missing/unavailable
+relevance reranking. Each candidate has a required score field; the application maps fields back to
+the original passages and sorts by score, preserving hybrid order for ties. Failed reranking reports
+a warning and keeps hybrid order. Missing/unavailable
 vector retrieval blocks clinical answers; there is no lexical-only replacement for a missing index.
 
 Generation receives the question, own-HCP profile/personality, relevant workbook interactions,

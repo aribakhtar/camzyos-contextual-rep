@@ -14,10 +14,10 @@ def passages(count=3):
 def test_reranker_reorders_original_passages_and_keeps_stable_ties(cfg, monkeypatch):
     original = passages()
     before = copy.deepcopy(original)
-    monkeypatch.setattr(reranking, "structured", lambda *a, **kw: reranking.Ranking(scores=[
-        reranking.PassageScore(passage_id="p0", relevance=0, reason="unrelated"),
-        reranking.PassageScore(passage_id="p1", relevance=3, reason="relevant"),
-        reranking.PassageScore(passage_id="p2", relevance=3, reason="relevant")]))
+    monkeypatch.setattr(reranking, "structured", lambda cfg, schema, *a, **kw: schema(
+        candidate_0={"relevance": 0, "reason": "unrelated"},
+        candidate_1={"relevance": 3, "reason": "relevant"},
+        candidate_2={"relevance": 3, "reason": "relevant"}))
     ranked = reranking.rerank(cfg, "fixture query", original)
     assert [p["id"] for p in ranked] == ["p1", "p2", "p0"]
     assert ranked[0]["retrieval"]["candidate_rank"] == 2
@@ -26,11 +26,13 @@ def test_reranker_reorders_original_passages_and_keeps_stable_ties(cfg, monkeypa
     assert all({k:v for k,v in p.items() if k != "retrieval"} == before[int(p["id"][1:])] for p in ranked)
 
 
-@pytest.mark.parametrize("ids", [["p0", "p1"], ["p0", "p1", "foreign"], ["p0", "p0", "p2"]])
-def test_bad_ranking_ids_cannot_add_replace_or_duplicate_evidence(cfg, monkeypatch, ids):
-    monkeypatch.setattr(reranking, "structured", lambda *a, **kw: reranking.Ranking(scores=[
-        reranking.PassageScore(passage_id=i, relevance=3, reason="fixture") for i in ids]))
-    with pytest.raises(ValueError, match="exactly"):
+@pytest.mark.parametrize("slots", [["candidate_0", "candidate_1"],
+    ["candidate_0", "candidate_1", "foreign"], ["candidate_0", "candidate_0", "candidate_2"]])
+def test_bad_ranking_slots_cannot_add_replace_or_duplicate_evidence(cfg, monkeypatch, slots):
+    def invalid(cfg, schema, *args, **kwargs):
+        return schema.model_validate({slot: {"relevance": 3, "reason": "fixture"} for slot in slots})
+    monkeypatch.setattr(reranking, "structured", invalid)
+    with pytest.raises(ValidationError):
         reranking.rerank(cfg, "fixture", passages())
 
 
@@ -40,17 +42,34 @@ def test_inspection_passages_rejected_before_reranker_call(cfg, monkeypatch):
         reranking.rerank(cfg, "fixture", [{**passages()[0], "id": "inspection:fixture"}])
 
 
-def test_reranker_schema_constrains_passage_ids_and_candidate_count(cfg, monkeypatch):
+def test_reranker_schema_requires_each_candidate_and_preserves_mapping(cfg, monkeypatch):
     def check_schema(config, schema, instruction, payload, **kwargs):
-        rows = [{"passage_id": p["id"], "relevance": 2, "reason": "Fixture"} for p in payload["passages"]]
-        parsed = schema.model_validate({"scores": rows})
+        rows = {p["slot"]: {"relevance": 2, "reason": "Fixture"} for p in payload["passages"]}
+        assert set(schema.model_json_schema()["required"]) == set(rows)
+        assert all(p["text"] == f"Synthetic retrieval fixture {i}" for i, p in enumerate(payload["passages"]))
+        parsed = schema.model_validate(rows)
         with pytest.raises(ValidationError):
-            schema.model_validate({"scores": [{**rows[0], "passage_id": "foreign"}] + rows[1:]})
+            schema.model_validate({**rows, "foreign": rows["candidate_0"]})
         with pytest.raises(ValidationError):
-            schema.model_validate({"scores": rows[:-1]})
+            schema.model_validate({k: v for k, v in rows.items() if k != "candidate_2"})
         return parsed
     monkeypatch.setattr(reranking, "structured", check_schema)
     assert len(reranking.rerank(cfg, "fixture", passages())) == 3
+
+
+def test_duplicate_candidates_rejected_before_model_call(cfg, monkeypatch):
+    monkeypatch.setattr(reranking, "structured", lambda *a, **kw: pytest.fail("No call permitted"))
+    with pytest.raises(ValueError, match="unique"):
+        reranking.rerank(cfg, "fixture", [passages()[0], passages()[0]])
+    assert reranking.rerank(cfg, "fixture", []) == []
+
+
+@pytest.mark.parametrize("score", [
+    {"relevance": -1, "reason": "invalid"}, {"relevance": 4, "reason": "invalid"},
+    {"relevance": 2, "reason": "x" * 161}, {"relevance": 2, "reason": "valid", "passage_id": "foreign"}])
+def test_score_limits_and_model_supplied_ids_are_enforced(score):
+    with pytest.raises(ValidationError):
+        reranking.PassageScore.model_validate(score)
 
 
 class ScopedStore:

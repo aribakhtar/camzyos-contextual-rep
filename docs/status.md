@@ -6,7 +6,7 @@ Historical values are preserved in the [evaluation snapshot](evaluation-results.
 
 | Area | Verified state |
 |---|---|
-| Software checks | Latest local suite: 360 tests and 14 subtests passed; Ruff passed. One upstream Graphiti/Pydantic deprecation warning remains. |
+| Software checks | Latest local suite: 365 tests and 14 subtests passed; Ruff passed. One upstream Graphiti/Pydantic deprecation warning remains. |
 | Clinical index | 20/20 eligible passages, ONLINE, from the recorded EMA SmPC version |
 | Inspection index | 432/432 passages across eight PDFs and 203 pages, ONLINE; all eight corpus smoke checks passed |
 | Startup | Document preparation, strict index checks and HCP seeding precede Streamlit through `scripts/start.ps1`; unchanged embeddings/seeds are reused |
@@ -42,6 +42,13 @@ exposed an invented workplace that the combined verifier missed. Nonempty introd
 a focused context-only audit: the final four checks accepted absent/supported personal assertions and
 rejected invented/contradicted ones. Failed intermediate checks are retained in local reports. These
 targeted results do not replace the full benchmark or establish clinical safety.
+
+An intermittent reranking fallback was reproduced with a duplicate passage ID replacing an omitted
+candidate. The response now requires a score for each server-assigned candidate slot. Three live
+retrieval queries, including `how should camzyos be administered` and the previously failing combined
+indication/administration query, completed reranking without warnings. The administration question
+also completed the answer flow after one claim-citation correction. Service failures can still use
+the visible hybrid-order fallback; this check does not measure ranking quality or clinical accuracy.
 
 Remaining limitations:
 

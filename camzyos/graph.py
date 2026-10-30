@@ -151,16 +151,20 @@ async def memory(client, hcp_id, query=None, episode=None, seed=False):
         if episode is not None:
             await client.build_indices_and_constraints()
             episode_uuid = str(uuid5(NAMESPACE_URL, hcp_id + json.dumps(episode, sort_keys=True))) if seed else None
+            episode_name = "Attributed HCP context" + (f" seed:{episode_uuid}" if seed else "")
             if episode_uuid:
                 records, _, _ = await client.driver.execute_query(
-                    "MATCH(n:Episodic {uuid:$uuid,group_id:$group}) RETURN n.uuid AS uuid",
-                    uuid=episode_uuid, group=group(hcp_id))
+                    "MATCH(n:Episodic {group_id:$group}) WHERE n.name=$name OR n.uuid=$uuid "
+                    "RETURN n.uuid AS uuid",
+                    name=episode_name, uuid=episode_uuid, group=group(hcp_id))
                 if records:
-                    return {"episode_uuid": episode_uuid, "status": "already imported"}
+                    return {"episode_uuid": records[0]["uuid"], "status": "already imported"}
+            # In Graphiti 0.31.2, uuid means reprocess an existing episode, not create
+            # with that ID. Its completed episode name provides seed idempotency.
             result = await client.add_episode(
-                name="Attributed HCP context", episode_body=json.dumps(episode, ensure_ascii=False),
+                name=episode_name, episode_body=json.dumps(episode, ensure_ascii=False),
                 source=EpisodeType.json, source_description="HCP context, not clinical evidence",
-                reference_time=datetime.now(timezone.utc), group_id=group(hcp_id), uuid=episode_uuid,
+                reference_time=datetime.now(timezone.utc), group_id=group(hcp_id),
             )
             return {"episode_uuid": result.episode.uuid}
         edges = await client.search(query, group_ids=[group(hcp_id)], num_results=5)

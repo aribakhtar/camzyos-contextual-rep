@@ -83,6 +83,7 @@ def test_verifier_receives_only_each_claims_cited_passages_and_selected_context(
     assert payload["claims"][0]["cited_evidence"] == [evidence[0]]
     assert "v1:1" not in str(payload)
     assert payload["PERSONAL_CONTEXT"] == {"HCP_A.name": "Dr. Alpha"}
+    assert payload["personal_assertions_to_verify"] == [answer.introduction]
 
 
 def test_silent_style_preference_keeps_context_trace_and_citations(cfg, store, tables, monkeypatch, indexed):
@@ -97,6 +98,7 @@ def test_silent_style_preference_keeps_context_trace_and_citations(cfg, store, t
             data.update(introduction="", context_used=["HCP_A.communicationStyle"])
             return engine.answer_schema(payload).model_validate(data)
         assert payload["introduction"] == ""
+        assert payload["personal_assertions_to_verify"] == []
         assert payload["PERSONAL_CONTEXT"] == {"HCP_A.communicationStyle": "Concise"}
         assert payload["claims"][0]["cited_evidence"][0]["id"] == "v1:0"
         return engine.Verification(all_claims_supported=True, personal_context_supported=True,
@@ -134,4 +136,28 @@ def test_one_correction_is_reverified_before_display(cfg, store, tables, monkeyp
     result = engine.ask(cfg, store, tables, "a@example.test", "monitoring information")
     assert calls == {"answer": 2, "verification": 2}
     assert result["decision"] == ("answer" if repair_succeeds else "handoff")
+    assert len(result["verification_checks"]) == 2
+    assert result["verification_checks"][0]["all_claims_supported"] is False
+    assert result["verification_checks"][0]["reason"] == "Fix the unsupported claim."
+    assert result["verification_checks"][1]["all_claims_supported"] is repair_succeeds
     assert store.history("HCP_A") == []
+
+
+def test_personal_audit_failure_cannot_be_overridden_by_final_verifier(cfg, store, tables, monkeypatch, indexed):
+    from camzyos import grounding
+
+    cfg["api_key"] = "test-placeholder"
+    def parse(cfg, schema, instruction, payload):
+        if schema is engine.Decision:
+            return engine.Decision(route="answer", reason="Test", topic="general", retrieval_query="monitoring")
+        if schema is engine.Answer:
+            return engine.Answer(**candidate())
+        return engine.Verification(all_claims_supported=True, personal_context_supported=True,
+                                   within_scope=True, reason="Test false positive")
+    monkeypatch.setattr(engine, "parse", parse)
+    monkeypatch.setattr(grounding, "audit_personal", lambda *a: {"passed": False, "reason": "Unsupported personal fact"})
+    result = engine.ask(cfg, store, tables, "a@example.test", "monitoring information")
+    assert result["decision"] == "handoff" and result["policy_route"] == "validation"
+    assert len(result["verification_checks"]) == 2
+    assert all(not check["personal_context_supported"] for check in result["verification_checks"])
+    assert all(not check["personal_audit"]["passed"] for check in result["verification_checks"])

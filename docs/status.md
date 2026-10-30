@@ -6,14 +6,14 @@ Historical values are preserved in the [evaluation snapshot](evaluation-results.
 
 | Area | Verified state |
 |---|---|
-| Software checks | Latest local suite: 344 tests and 14 subtests passed; Ruff passed. One upstream Graphiti/Pydantic deprecation warning remains. |
+| Software checks | Latest local suite: 360 tests and 14 subtests passed; Ruff passed. One upstream Graphiti/Pydantic deprecation warning remains. |
 | Clinical index | 20/20 eligible passages, ONLINE, from the recorded EMA SmPC version |
 | Inspection index | 432/432 passages across eight PDFs and 203 pages, ONLINE; all eight corpus smoke checks passed |
 | Startup | Document preparation, strict index checks and HCP seeding precede Streamlit through `scripts/start.ps1`; unchanged embeddings/seeds are reused |
 | HCP context | Own-profile lookup, personality, dated supplied interactions and scoped Graphiti memory |
 | Conversation | Full dated transcript, token-budget summaries of working context, explicit clear/forget, opt-in persistence |
 | Retrieval | Vector + BM25 fusion, up to 20 candidates reranked to six, eligibility checks before and after retrieval |
-| Grounding | Structured IDs, per-claim proof audits, separate verification and bounded correction |
+| Grounding | Structured IDs, selection of exact source excerpts, per-claim proof audits, separate verification and bounded correction |
 | Handoffs | Downloadable drafts for policy/evidence boundaries; no external delivery |
 
 The full 132-scenario evaluation produced 36 answers, 96 handoffs and no execution errors. Its
@@ -31,6 +31,17 @@ with citations and retained history. In the Compare rehearsal, a narrow administ
 answered in both grounded modes for Anna, while Prakash's contextual result was withheld. A broader
 indication-plus-administration question produced verification handoffs for both HCPs. Reranking
 warnings also occurred. These outcomes remain limitations, not evidence of a guaranteed successful demo.
+
+A later Prakash definition failure exposed two verification defects: the auditor rewrote proof
+quotes, and the final verifier rejected answers with no personal assertions. Proofs now resolve from
+selected source-excerpt IDs, and the personal-context rule explicitly accepts absence of personal
+claims. The exact question, `what is camzyos`, then answered with a source citation and passed both
+checks on the first generation attempt. Anna's definition and Prakash's administration question also
+answered, and the combined renal/hepatic contradiction was rejected. An additional adversarial check
+exposed an invented workplace that the combined verifier missed. Nonempty introductions now receive
+a focused context-only audit: the final four checks accepted absent/supported personal assertions and
+rejected invented/contradicted ones. Failed intermediate checks are retained in local reports. These
+targeted results do not replace the full benchmark or establish clinical safety.
 
 Remaining limitations:
 

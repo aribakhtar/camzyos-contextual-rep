@@ -61,7 +61,9 @@ class Answer(BaseModel):
 
 class Verification(BaseModel):
     all_claims_supported: bool
-    personal_context_supported: bool
+    personal_context_supported: bool = Field(description="True if every personal assertion is supported by "
+        "the supplied PERSONAL_CONTEXT, or there are no personal assertions. False for any invented "
+        "or contradicted personal fact; clinical evidence cannot supply a missing profile fact.")
     within_scope: bool
     reason: str
 
@@ -242,6 +244,10 @@ Address the HCP directly, not as a third-person biography. Keep internal context
 out of prose; put them only in context_used and evidence_ids. Match the question's language unless asked otherwise.
 Every clinical/account assertion belongs in a claim with one or more exact evidence_ids. Do not put URLs
 or manually formatted citations in text. Select context_used IDs from CONTEXT only, for facts actually used.
+Match the breadth of the question: a definition or administration question does not require a full
+clinical overview. Retain essential qualifications, but avoid unrelated mechanisms, dosing details
+or broad benefit claims. Do not generalize a specific endpoint into overall clinical improvement.
+Use limitations to explain actual evidence coverage, not to add clinical assertions outside claims.
 Include preferences that actually shaped the answer even when applied silently; do not list unused
 profile fields just to demonstrate personalization. The context_used trace is not text to recite to the HCP.
 Include the CONTEXT key for EVERY personal fact in the introduction; do not infer a practice setting.
@@ -276,6 +282,18 @@ with an irrelevant citation fails all_claims_supported. Check every personal fac
 against PERSONAL_CONTEXT; do not infer missing facts. Clinical assertions in the introduction or
 limitations must also be supported by the cited evidence. Reject individual advice, off-label uses,
 comparison claims and unsupported assertions. Return honest booleans and identify any error."""
+VERIFY += """ Explicitly inspect personal_assertions_to_verify; do not skip this text as a greeting
+or an introduction. Also check the rest of the answer for personal assertions.
+personal_context_supported means there are no unsupported personal assertions anywhere
+in the answer. Set it true when the answer contains no personal assertions, including when introduction
+and PERSONAL_CONTEXT are empty. Personalization is optional for a factual question; a silent style
+preference does not require a profile recap. Set it false only when an actual personal assertion is
+unsupported or contradicts PERSONAL_CONTEXT, and identify that assertion in reason. PERSONAL_CONTEXT
+is the complete allowed personal evidence: a missing property is unknown, not implicitly supported.
+For each personal assertion, identify its supporting context key AND value in reason; if no supplied
+key/value actually establishes it, personal_context_supported MUST be false. Do not infer one profile
+property from another or from the clinical sources. Never infer a
+general clinical benefit from a narrower mechanism or endpoint; retain the source's exact scope."""
 VERIFY += """ Actively search for contradictory subpopulation instructions, especially when one sentence
 combines organs, severities or genotypes. A correct renal statement does not support the same hepatic
 statement. Current documents do not prove historical changes or the absence of new research."""
@@ -283,6 +301,7 @@ statement. Current documents do not prove historical changes or the absence of n
 
 def verification_payload(question, answer, evidence, ctx):
     return {"question": question, "introduction": answer.introduction,
+            "personal_assertions_to_verify": [answer.introduction] if answer.introduction.strip() else [],
             "PERSONAL_CONTEXT": {key: ctx[key] for key in answer.context_used},
             "claims": [{"text": claim.text,
                         "cited_evidence": [e for e in evidence if e["id"] in claim.evidence_ids]}
@@ -427,13 +446,13 @@ def _ask(cfg, store, tables, email, question, history, persist, search, mode, wo
             return result
         payload = {"question": question, "CONTEXT": ctx,
                    "EVIDENCE": evidence, "DATASET_GAPS": gaps}
-        audits = []
+        audits, verifications = [], []
         for attempt in range(2):
             answer = parse(cfg, Answer, GENERATE, working.fit(answer_schema(payload), GENERATE, payload))
             if answer.insufficient:
                 result = handoff(question, "insufficient", ctx, history)
                 result.update(warnings=warnings, discoveries=discoveries, evidence_gaps=gaps,
-                              grounding_audits=audits, **retrieval_trace)
+                              grounding_audits=audits, verification_checks=verifications, **retrieval_trace)
                 return result
             reason = "Use only allowed EVIDENCE IDs for claims and CONTEXT keys for personal facts."
             if validate_ids(answer, evidence, ctx):
@@ -447,6 +466,13 @@ def _ask(cfg, store, tables, email, question, history, persist, search, mode, wo
                     continue
                 verdict = parse(cfg, Verification, VERIFY,
                                 verification_payload(question, answer, evidence, ctx))
+                personal = grounding.audit_personal(cfg, answer.introduction,
+                                                     {key: ctx[key] for key in answer.context_used})
+                if not personal["passed"]:
+                    verdict.personal_context_supported = False
+                    verdict.reason += " Personal-context audit: " + personal["reason"]
+                verifications.append({"attempt": attempt + 1, **verdict.model_dump(),
+                                      "personal_audit": personal})
                 if verdict.all_claims_supported and verdict.personal_context_supported and verdict.within_scope:
                     break
                 reason = verdict.reason
@@ -454,7 +480,7 @@ def _ask(cfg, store, tables, email, question, history, persist, search, mode, wo
         else:
             result = handoff(question, "validation", ctx, history)
             result["warnings"] = warnings + ["The generated answer failed the evidence/policy check."]
-            result.update(retrieval_trace, grounding_audits=audits)
+            result.update(retrieval_trace, grounding_audits=audits, verification_checks=verifications)
             return result
         ids = list(dict.fromkeys(cid for claim in answer.claims for cid in claim.evidence_ids))
         citations = [next(e for e in evidence if e["id"] == cid) for cid in ids]
@@ -467,7 +493,7 @@ def _ask(cfg, store, tables, email, question, history, persist, search, mode, wo
                   "evidence_gaps": gaps,
                   "clinical_response": "\n\n".join(c.text for c in answer.claims),
                   "retrieved_contexts": [e["text"] for e in evidence], "verification": verdict.model_dump()}
-        result.update(retrieval_trace, grounding_audits=audits)
+        result.update(retrieval_trace, grounding_audits=audits, verification_checks=verifications)
         if hcp and persist:
             if cfg["graphiti_enabled"]:
                 try:

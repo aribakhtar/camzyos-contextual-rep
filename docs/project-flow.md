@@ -52,8 +52,13 @@ Graphiti recall, conversation context and eligible passages. Safety instructions
 on each request; no persistent per-HCP system prompt or multi-query expansion is implemented.
 The structured response separates clinical claims, evidence IDs and personal-context keys.
 
-Each claim is audited against its own cited passages with exact proof excerpts. Citation membership,
-personal facts and scope are checked separately. One correction is allowed before a validation
+Each claim is audited against its own cited passages. The auditor selects excerpt IDs and the
+application copies the original source text, preventing paraphrased proof quotations. Contradictions,
+missing support and wrong-population evidence still fail the audit. Citation membership, personal
+facts and scope are checked separately; an answer without personal assertions needs no profile recap.
+Nonempty introductions also receive a focused personal-fact audit without clinical passages, so
+missing profile facts cannot be accepted merely because the clinical answer is supported.
+Verification reasons are retained for each attempt. One correction is allowed before a validation
 handoff. These model-based checks remain fallible; passing them is not independent clinical review.
 Historical-change claims require a reviewed version comparison, which the prototype does not yet
 provide. Current label text alone cannot establish what changed since a meeting.

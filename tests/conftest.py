@@ -17,6 +17,7 @@ def indexed(monkeypatch):
     # Existing orchestration tests isolate the external claim-audit dependency. Its semantic,
     # quotation and failure-boundary behavior is exercised separately in test_grounding_policy.py.
     monkeypatch.setattr(grounding, "audit", lambda *args: {"passed": True, "claims": [], "issues": []})
+    monkeypatch.setattr(grounding, "audit_personal", lambda *args: {"passed": True, "reason": "Fixture audit"})
 
 
 @pytest.fixture

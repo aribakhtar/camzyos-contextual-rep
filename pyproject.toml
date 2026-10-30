@@ -24,6 +24,8 @@ include = ["camzyos*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Repo-local CLI helpers must resolve with both pytest and python -m pytest.
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 110

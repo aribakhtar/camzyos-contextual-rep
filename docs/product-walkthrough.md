@@ -2,6 +2,9 @@
 
 Checked against the running app and code on 30 October 2026.
 
+For exact HCP emails, contrasting personalities, copyable questions and scored comparison commands,
+use the [HCP demo scenarios](hcp-demo-scenarios.md).
+
 ## A short explanation you can present
 
 “This is a CAMZYOS information assistant for healthcare professionals in Germany. We prepare and

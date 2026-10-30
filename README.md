@@ -4,6 +4,8 @@ A Streamlit prototype for personalized CAMZYOS information for HCPs in Germany. 
 
 **New to the product?** Start with the [product flow and Streamlit walkthrough](docs/product-walkthrough.md):
 what happens before/during chat, what each view does, and a five-minute demonstration sequence.
+The [HCP demo scenarios](docs/hcp-demo-scenarios.md) provide all eight emails, personality comparisons,
+copyable boundary/follow-up questions and evaluation commands.
 
 **Current state:** runnable locally, with deterministic tests and live source checks. Add your API key for generation, embeddings, Graphiti extraction and RAGAS scoring. No live answer-quality improvement is claimed yet. See [verification and limitations](docs/status.md).
 

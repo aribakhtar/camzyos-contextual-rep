@@ -1,0 +1,179 @@
+{
+  "recorded_date": "2026-10-30",
+  "scope": "Development benchmark; predates later guardrail and presentation fixes, not current-version acceptance.",
+  "provenance": {
+    "full_run": "full-evaluation-20261030T105623Z",
+    "targeted_run": "guardrail-fixes-20261030T113049Z",
+    "original_summary_sha256": "294e3ab9af93c31fef4f1979b38926d3a1cb695a502e97f5eacd8b44208cf76c",
+    "responses_sha256": "e3f4c542a490199be36c88cec00d1efc6d66b472e6a7221109cfb9e4b4b0a84f",
+    "raw_reports_in_git": false
+  },
+  "retrieval": {
+    "runs": 12,
+    "unique_questions": 4,
+    "metrics": {
+      "context_precision": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 0.9638888888162963,
+        "min": 0.81666666664625,
+        "max": 0.99999999995,
+        "stddev": 0.06920666359327259
+      },
+      "context_recall": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      },
+      "reciprocal_rank": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      },
+      "reference_hit_at_k": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      },
+      "reference_recall_at_k": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      }
+    }
+  },
+  "contextual_answers": {
+    "runs": 12,
+    "unique_questions": 4,
+    "metrics": {
+      "context_precision": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 0.8972222221539583,
+        "min": 0.49999999995,
+        "max": 0.999999999975,
+        "stddev": 0.19290879894002871
+      },
+      "context_recall": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      },
+      "faithfulness": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 0.9027777777777778,
+        "min": 0.5,
+        "max": 1.0,
+        "stddev": 0.18060411157513862
+      },
+      "reciprocal_rank": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 0.9166666666666666,
+        "min": 0.5,
+        "max": 1.0,
+        "stddev": 0.19462473604038075
+      },
+      "reference_hit_at_k": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      },
+      "reference_recall_at_k": {
+        "scored": 12,
+        "missing": 0,
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0,
+        "stddev": 0.0
+      }
+    }
+  },
+  "hcp_scenarios": {
+    "cases": 132,
+    "actual_decisions": {
+      "handoff": 96,
+      "answer": 36
+    },
+    "execution_errors": 0,
+    "faithfulness_scored_answers": 36,
+    "faithfulness_mean": 0.9114477476546442,
+    "reference_metrics_reason": "No reviewed clinical gold references in this behavioral dataset."
+  },
+  "context_checks": {
+    "language": {
+      "matches": 14,
+      "assessed": 132,
+      "unassessed": 0,
+      "match_rate": 0.10606060606060606,
+      "targets": {
+        "German": 132
+      },
+      "detected": {
+        "English": 118,
+        "German": 14
+      }
+    },
+    "answers_with_declared_context": 36,
+    "foreign_declared_context_key_cases": 0,
+    "citation_membership_failures": 0,
+    "multi_turn": {
+      "cases": 2,
+      "prior_history_present": 2,
+      "final_routes": {
+        "patient": 2
+      }
+    },
+    "limitations": [
+      "Language identification can fail on short or mixed-language text; inspect disagreements.",
+      "Context-key scope and citation membership do not prove semantic correctness or usefulness.",
+      "History presence and route counts do not prove general conversation understanding."
+    ]
+  },
+  "targeted_regressions": {
+    "scope": "Targeted regressions, not a rerun of the 132-case benchmark or RAGAS.",
+    "original_ray_001_ragas_faithfulness": 1.0,
+    "original_score_changed": false,
+    "claim_checks_met": 4,
+    "claim_checks_total": 4,
+    "case_checks_met": 15,
+    "case_checks_total": 15,
+    "application_inputs_unchanged": true,
+    "hcp_memory_unchanged": true,
+    "elapsed_case_seconds": 98.644,
+    "failures": [],
+    "limits": [
+      "Same-model semantic audits are fallible.",
+      "PV intake remains an unsent draft.",
+      "No reviewed source-version comparison workflow exists.",
+      "Independent clinical annotation remains pending."
+    ]
+  },
+  "limitations": [
+    "Four distinct source-pinned questions repeated three times per mode; not twelve independent questions.",
+    "AI-authored behavioral expectations lack independent clinical review.",
+    "ray_001 contradicted its cited source despite faithfulness 1.0; original score preserved.",
+    "Subjective contextualization judge failed calibration; no validated overall personalization score.",
+    "Full benchmark has not been rerun after the later guardrail and presentation fixes.",
+    "No held-out generalization or clinical-approval claim is made."
+  ]
+}

@@ -85,6 +85,33 @@ def test_verifier_receives_only_each_claims_cited_passages_and_selected_context(
     assert payload["PERSONAL_CONTEXT"] == {"HCP_A.name": "Dr. Alpha"}
 
 
+def test_silent_style_preference_keeps_context_trace_and_citations(cfg, store, tables, monkeypatch, indexed):
+    cfg["api_key"] = "test-placeholder"
+
+    def parse(cfg, schema, instruction, payload):
+        if schema is engine.Decision:
+            return engine.Decision(route="answer", reason="Test", topic="general",
+                                   retrieval_query="monitoring information")
+        if schema is engine.Answer:
+            data = candidate()
+            data.update(introduction="", context_used=["HCP_A.communicationStyle"])
+            return engine.answer_schema(payload).model_validate(data)
+        assert payload["introduction"] == ""
+        assert payload["PERSONAL_CONTEXT"] == {"HCP_A.communicationStyle": "Concise"}
+        assert payload["claims"][0]["cited_evidence"][0]["id"] == "v1:0"
+        return engine.Verification(all_claims_supported=True, personal_context_supported=True,
+                                   within_scope=True, reason="Test verification")
+
+    monkeypatch.setattr(engine, "parse", parse)
+    result = engine.ask(cfg, store, tables, "a@example.test", "monitoring information")
+    assert result["decision"] == "answer"
+    assert result["answer"] == "Synthetic test fact. [1]"
+    assert result["context_used"] == {"HCP_A.communicationStyle": "Concise"}
+    assert [citation["id"] for citation in result["citations"]] == ["v1:0"]
+    assert "HCP_B" not in str(result)
+    assert store.history("HCP_A") == []
+
+
 @pytest.mark.parametrize("repair_succeeds", [True, False])
 def test_one_correction_is_reverified_before_display(cfg, store, tables, monkeypatch, repair_succeeds, indexed):
     cfg["api_key"] = "test-placeholder"

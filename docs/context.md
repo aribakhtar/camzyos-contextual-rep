@@ -1,75 +1,44 @@
-# Product context retained from the discussion
+# Product scope
 
-## Problem and intended experience
+The assistant provides text-based CAMZYOS product information for HCPs in Germany. It combines
+eligible document evidence with relevant HCP preferences and conversation context, with visible
+citations and a human-handoff path. Personalization changes relevance and presentation, not the
+clinical facts or required safety qualifications.
 
-A pharmaceutical representative has deep product knowledge but limited availability. An HCP may have a CAMZYOS question while preparing for clinical work and otherwise search independently using an ungrounded assistant. This product provides accessible product information with the context a representative would remember, and a clear route to a human when the question requires one.
+| Information | Allowed use |
+|---|---|
+| HCP workbook and own-HCP Graphiti memory | Preferences, experience, concerns, attributed history and material already received |
+| Eligible active document passages | Clinical and product claims with exact source/page/version references |
+| Account documents | Only when verified evidence and an explicit HCP-to-account mapping exist |
 
-Personalization is a core requirement, as important as retrieval. The answer should reflect specialty, experience, practice setting, communication preferences, relevant persona concerns, earlier meetings, prior questions, supplied information and material already received. It must not merely insert the HCP's name into a generic answer. A request for concise information changes presentation; it does not remove essential safety qualifications or change the evidence.
+The bundled workbook contains eight synthetic profiles, eight personality records and 41 historical
+interactions. Historical dates describe supplied records, not necessarily earlier use of this app.
+Its placeholder clinical chunks, publications, local-market summaries and updates are excluded from
+medical evidence. All eight PDFs are available for inspection; only the reviewed active clinical
+corpus may support answers. See [source coverage](all-pdf-testing.md) and [provenance](sources.md).
 
-Scope is CAMZYOS in Germany, HCP users, text chat only. UI polish, avatars and voice are out of scope. A general discussion of practice constraints is different from recommending treatment for an individual patient; the latter requires handoff.
+Known emails resolve to their own HCP context. Unknown emails receive general eligible information
+without personal context or persistence. The selector is a local demo convention, not authentication.
+HCP identity scopes live transcripts, caches, stored records, Graphiti groups and exports.
 
-## Data provided
+Preferences should quietly shape organization and detail. The current question can override a stored
+presentation preference. Avoid routine profile recaps; mention supported personal facts only when
+requested or useful. `context_used` records facts and preferences actually applied, including silent
+style adaptation. It is an audit trace, not a required introduction.
 
-The user subsequently required every PDF to be indexed for full-corpus testing. The separate inspection pipeline now retains all 203 pages / 432 passages from the eight PDFs, including short/structured, staged, public, historical and US text. Clinical retrieval still enforces the original eligibility, consent, and HCP/account boundaries. See [all-PDF testing](all-pdf-testing.md).
+Full dated conversations remain available in the session. Automatic summarization compacts only
+model input when the context budget approaches capacity; it does not delete original messages.
+Persistence needs a separate opt-in. Previously unsaved turns must not be saved retrospectively by
+later enabling storage. Clear and Forget are explicit controls. Proactive-outbound consent in the
+workbook does not authorize storing new chats; no proactive messaging is implemented.
 
-The workbook was supplied as `Copy of BMS_ContextualAIRep_Hackathon_Dataset_28th Oct 1.xlsx`. At the user's explicit request for clone portability, its unchanged bytes are committed as `assets/hcp_context.xlsx`; the supplied PDFs and added German Fachinformation are committed under `assets/product_information/`. `config.yaml` uses these relative paths, with optional `.env` overrides. A fresh clone rebuilds generated state with `python -m camzyos.cli prepare`; it does not need the original machine's folders. File hashes and original filenames are recorded in `assets/manifest.json`.
+Off-label recommendations, individual treatment advice, comparative product claims and other-HCP
+data require refusal or handoff. Reported adverse events take priority and route to Pharmacovigilance;
+product complaints route to Quality. Human requests create an immediate draft. Missing eligible
+evidence or failed verification can also prevent an answer. Drafts include a reason and conversation
+summary for review; the app does not send them or register external cases.
 
-The actual workbook contains eight synthetic HCPs, eight personality records and 41 interaction records. Tabs discussed include README, Data_Dictionary, HCP_Profile, Personality, HCP_Interactions, Approved_Content, Content_Chunks, Local_Market_Context, Publications, Updates, Evidence_Gaps, Question_Types and Guardrails. The narrative initially described 11 sheets; actual sheet names and rows control import, rather than that count.
-
-- HCP_Profile, Personality and HCP_Interactions are contextual data, including dated records and known material history.
-- Clinical text in Content_Chunks, publications and local-market summaries is synthetic/placeholder. It is excluded from real clinical evidence.
-- Approved_Content records do not establish approval of unrelated files or a newly fetched publication. Source eligibility must be established separately.
-- Evidence_Gaps are dataset review flags. They prompt caution and follow-up, not claims that no real-world research exists.
-- Guardrails and Question_Types inform application behavior and testing; document text cannot override application policy.
-- Updates are synthetic until supported by an actual source-version comparison. Do not generate a real clinical change notification from a placeholder row.
-
-The supplied seven PDFs contain 191 pages. Some are US prescribing information and some EU documents mix professional and patient sections. Jurisdiction and section filtering are essential. An additional German Fachinformation was fetched from the publisher and retained locally for review.
-
-## Required behavior
-
-Known email → resolve HCP ID → own context only → name greeting. Unknown email → general eligible content only, no personal/account context and no persistence. The synthetic email selector is a demo convention; production needs verified authentication.
-
-An answer combines the current question, relevant own-HCP context, past interactions, German-market/product context, eligible evidence and optionally reviewed public information. It displays the exact sources and the personal context actually used. Already-received material may be referenced but should not be automatically resent. The current explicit request can override stored presentation preferences for that turn.
-
-Three information categories must remain distinguishable:
-
-1. HCP context: preferences, specialty, experience, practice and interaction history.
-2. Brand evidence: applicable label, approved evidence, scientific publications and trials. FDA material is not a substitute for the German/EU label.
-3. Account/provider/payer context: verified hospital or clinic policies, pathways and access information linked to an explicit account. Workplace type alone is insufficient.
-
-Off-label questions, advice for an individual patient, unsupported comparative claims and other-HCP information require refusal/handoff. Workbook rules also identify Pharmacovigilance, product-quality and human-request routes. A handoff explains the reason and offers a short question/conversation summary for review. The prototype creates a downloadable draft; it does not contact anyone.
-
-New conversation storage and Graphiti writes need a separate opt-in. Existing proactive-outbound consent does not authorize transcript storage. No proactive outreach is implemented. Updating documents must not imply permission to notify HCPs.
-
-Conversation history must not be automatically truncated. Keep original messages and timestamps;
-summarize only the working context when its token budget approaches capacity. Clearing/forgetting is
-an explicit user action. Storage remains opt-in, including summaries of earlier turns. Graphiti's
-retrieved facts supplement the transcript; Graphiti does not manage the prompt window. Clinical
-document candidates are reranked for relevance after eligibility filtering. Current implementation,
-consent behavior and configuration are documented in [conversation and reranking](conversation-and-reranking.md).
-
-## Technology choices and why
-
-The user proposed Graph RAG + RAGAS + Streamlit, asked for broad reuse research, and specifically selected Graphiti as the memory foundation. The official Graphiti sales-agent example demonstrates personal memory plus product retrieval, but does not supply the required clinical PDF eligibility, versioning, citations, isolation or evaluation. Reuse its library/pattern; do not execute its destructive demo reset cells.
-
-Use Python, Streamlit, Graphiti/Neo4j, PyMuPDF, a sentence segmenter, controlled document retrieval and RAGAS/custom evaluations. Prefer libraries and a short explicit workflow over a framework-heavy autonomous system. No new graph-extraction framework is being built. Canonical workbook fields are read deterministically; Graphiti adds attributed temporal memory rather than replacing those records.
-
-The user subsequently required document preparation to finish before chat: uploads must parse, chunk and index in a separate preparation workflow. A missing index must not silently fall back to lexical-only clinical answers. The implementation now enforces index readiness and indexes replacements before activation. They also requested practical retrieval/RAGAS testing, now provided by the Evaluation view and source-pinned CLI runner. LangGraph was clarified as part of the researched example and an indirect dependency, not the orchestrator implemented in this app.
-
-The user requested an actual GitHub repo, an ignored `.env` for their key, a non-secret config file, sentence/word-preserving soft chunks, repeated header/footer cleanup and retention of this discussion in the repo. Keep meaningful section titles and clinical footnotes; blindly deleting all top/bottom text would lose evidence.
-
-For updated documents, hash source bytes and extraction settings, stage new parsed chunks, review, and switch the active version atomically. Keep old snapshots/citations auditable and exclude invalid versions. An on-demand publisher check is sufficient for this iteration; a scheduled watcher is not implemented.
-
-Optional PubMed search is configurable and off by default. Query fixed medical topics without personal details, fetch verifiable records, flag corrections/retractions and distinguish abstracts from full text. Public availability does not automatically confer approval for an HCP-facing answer. Every added source and its contribution must be recorded.
-
-## How the project will be judged
-
-**Grounded:** claims trace to eligible source passages; no invented references, placeholder clinical assertions or off-label advice. Guardrails must be exercised, not merely described in a prompt.
-
-**Contextual:** presentation and relevance visibly use the correct HCP's preferences/history/market. Compare a generic model, document-only RAG and contextual RAG with the same configured model and a fixed corpus. Do not manufacture an improved baseline comparison.
-
-**Useful:** cardiologists can find supported product information, see the source and understand when a human is needed. Compliance reviewers can inspect source versions, context usage and decisions.
-
-**Learning value:** identify missing evidence, extraction limitations, source conflicts, missing account policies and evaluation failures. RAGAS is a measurement aid, not a compliance certificate or a guarantee of zero hallucinations.
-
-The user will supply the model key locally. No key or live clinical benchmark was available during the initial build. Real institutional policies, production identity/roles, sponsor approval decisions and externally connected handoffs remain outside the supplied inputs.
+Graphiti supplies attributed memory, not clinical truth or workflow orchestration. Document
+eligibility, query rewriting, reranking, working-context summaries and answer verification remain
+application responsibilities. The implemented design is in [architecture](project-flow.md); its
+verified behavior and limitations are in [status](status.md).

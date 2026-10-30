@@ -14,3 +14,6 @@ reports/
 .streamlit/secrets.toml
 *.log
 
+
+# Local presenter notes; product documentation is in docs/product-walkthrough.md.
+/docs/screen-recording-script.md

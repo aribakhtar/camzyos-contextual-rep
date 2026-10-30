@@ -4,7 +4,7 @@ Reviewed/fetched during the initial build on 30 October 2026. Runtime eligibilit
 
 ## Supplied material
 
-The workbook contributes synthetic HCP identities, preferences, personality, interaction history, already-received content, review flags and guardrail requirements. The seven supplied PDFs are listed in [the corpus review](document-review.md) and `sources.yaml`. At the user's request, all supplied files and the added German PDF are now committed under [assets/](../assets/README.md), with original-byte checksums in [the asset manifest](../assets/manifest.json). The initial build's hash/status inventory is in [source-inventory.json](source-inventory.json).
+The workbook contributes synthetic HCP identities, preferences, personality, interaction history, already-received content, review flags and guardrail requirements. The seven supplied PDFs are listed in [the corpus inventory](all-pdf-testing.md) and `sources.yaml`. At the user's request, all supplied files and the added German PDF are now committed under [assets/](../assets/README.md), with original-byte checksums in [the asset manifest](../assets/manifest.json). The initial build's hash/status inventory is in [source-inventory.json](source-inventory.json).
 
 ## Added or independently fetched public material
 
@@ -38,6 +38,7 @@ PubMed output includes canonical URLs, authors, journal, year, DOI when supplied
 | [Neo4j Windows installation](https://neo4j.com/docs/operations-manual/current/installation/windows/) and [Windows console control handling](https://learn.microsoft.com/windows/console/setconsolectrlhandler) | Portable console startup/shutdown and inherited Ctrl-C behavior; informed the hidden-console wrapper and graceful stop helper. |
 | [JDK Attach API](https://docs.oracle.com/en/java/javase/21/docs/api/jdk.attach/com/sun/tools/attach/VirtualMachine.html) and [JVM shutdown sequence](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Runtime.html) | One-time local recovery of the original JVM that ignored Ctrl-C, invoking normal shutdown hooks rather than force-killing. The normal start/stop workflow does not load an agent. |
 
-The earlier repository search and every alternative's contribution/limitations are retained in [reuse-research.md](reuse-research.md), including Mem0, Memobase, Hindsight, LibreChat, LangChain memory-agent and other investigated projects. These are technical design references, not medical evidence.
+These library and design references are technical attribution, not medical evidence. The
+implemented boundaries and component responsibilities are documented in [architecture](project-flow.md).
 
 Graphiti is Apache-2.0 licensed. PyMuPDF is provided under AGPL/commercial licensing; consult its [license page](https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright) when deciding how to distribute/deploy the application. Dependency licenses remain their authors' licenses. The repository does not relicense supplied documents or copy third-party example source files.

@@ -246,5 +246,5 @@ are not. The app cannot substantiate “new since last time” from a current PD
 For a short HCP introduction, stop after Chat and its evidence/context panels. For an engineering
 audience, continue through Compare, Evaluation and source operations.
 
-See [the technical flow and techniques](project-flow.md), [test commands](testing-workflow.md),
-[the implemented guardrail changes](guardrail-fixes.md) and [current versus proposed architecture](current-vs-proposed-flow.md).
+See [architecture](project-flow.md), [evaluation and test commands](evaluation.md), and
+[verified behavior and limitations](status.md).

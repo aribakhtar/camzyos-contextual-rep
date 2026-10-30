@@ -176,7 +176,7 @@ remain the same development questions; they do not become independent held-out c
 The supplied 132-case file already embeds its HCP emails and scenarios. Its runner is separate:
 
 ```powershell
-.\.venv\Scripts\python.exe -m evals.hcp --cases-file 'C:\Users\Atharva\Downloads\camzyos_hcp_test_cases_8_HCPs (1).json' --judge-behavior --ragas
+.\.venv\Scripts\python.exe -m evals.hcp --cases-file 'path\to\hcp-cases.json' --judge-behavior --ragas
 ```
 
 See [contextualization evaluation](contextualization-evaluation.md) for scoring the saved outputs and

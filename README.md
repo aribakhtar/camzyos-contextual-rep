@@ -8,6 +8,8 @@ The repository includes eight synthetic HCP profiles and eight PDFs. Source elig
 prototype review decision, not sponsor approval. The email selector is a demo identity mechanism;
 production authentication and external handoff delivery are not implemented.
 
+[![CAMZYOS workflow: offline document preparation and HCP memory seeding, followed by per-message retrieval, verification and handoff](docs/images/hcp-chat-pipeline.png)](docs/images/hcp-chat-pipeline.png)
+
 | Start here | Contents |
 |---|---|
 | [Product walkthrough](docs/product-walkthrough.md) | Chat, Compare, Evaluation, Context and source management |

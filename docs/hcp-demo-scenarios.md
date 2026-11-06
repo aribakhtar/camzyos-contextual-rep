@@ -4,6 +4,13 @@ Use this alongside the [Streamlit walkthrough](product-walkthrough.md). Names, e
 below were checked against the bundled **synthetic** workbook on 30 October 2026. These are demo
 scenarios and human review criteria, not independently reviewed clinical gold answers.
 
+Presentation update, 6 November 2026: the selected HCP's personality shapes response depth, tone,
+organization and emphasis, with no word or claim-count limit. Explicit user requests override defaults.
+A separate review checks the actual response and requests a correction for a material mismatch.
+Normal answers use eligible passages; escalation paths follow the [16 guardrails](guardrails.md).
+Mandatory audit and local intake records are saved even when optional chat memory is unchecked.
+See the [verification record](verification-2026-11-06.md) for tested cases and limitations.
+
 ## Start with four contrasting HCPs
 
 Open `http://127.0.0.1:8501` in a fresh private browser window for the demonstration. Leave **Save my new
@@ -24,8 +31,8 @@ contrasts in structure, brevity, traceability and safety emphasis.
 
 All eight workbook profiles currently say **German**. They do not provide an English-versus-German
 personality contrast. Use the same explicit “Please answer in English” request across profiles when
-isolating style; separately test German. Current prompt language precedence is imperfect, so record
-language mismatches rather than assuming the preference will always be followed.
+isolating style; separately test German. The recorded language applies by default; an explicit English request overrides it. The independent
+response review checks that choice as well as style and source support.
 
 ## Three different meanings of comparison
 
@@ -121,7 +128,7 @@ explicit follow-up test. A handoff here is different from an unnecessary handoff
 | Missing local evidence | “What is my hospital's approved CAMZYOS booking and reimbursement protocol?” | Do not invent institutional rules from the EU label or workbook placeholders. |
 
 Check the handoff destination, explanation and draft status. Export the transcript to inspect
-`policy_route`, `grounding_audits` or `temporal_plan` when the main UI does not display those diagnostics.
+`policy_route`, `grounding_audits`, `verification_checks` or `retrieval_queries` when the main UI does not display those diagnostics.
 PV detection is not a real submission, tracking system or proof of compliance with a reporting deadline.
 
 ## Evaluate different HCP emails with scores

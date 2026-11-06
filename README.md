@@ -15,6 +15,7 @@ production authentication and external handoff delivery are not implemented.
 | [Product walkthrough](docs/product-walkthrough.md) | Chat, Compare, Evaluation, Context and source management |
 | [Demo scenarios](docs/hcp-demo-scenarios.md) | HCP emails, questions, persona comparisons and boundary cases |
 | [Architecture](docs/project-flow.md) | Preparation, retrieval, memory, verification and code locations |
+| [Full-document RAG](docs/rag.md) | Eligible retrieval from the eight-PDF index and HCP memory |
 | [Evaluation metrics](docs/evaluation-report.md) | Recorded benchmark values |
 | [Evaluation method](docs/evaluation.md) | Reproduction, datasets, limitations and guardrail findings |
 | [Implementation status](docs/status.md) | Verified behavior and unresolved limitations |
@@ -107,14 +108,20 @@ Open <http://127.0.0.1:8501> and select `anna.weber@example-clinic.de`. Try:
 The sidebar should report **Retrieval ready**. Use **Chat** for a conversation, **Compare** for the
 same question with three context settings, **Evaluation** for the bundled evaluation cases,
 **Sources & updates** for document review, and **Context** to inspect the selected synthetic profile.
-Saving new conversations is off by default. The [walkthrough](docs/product-walkthrough.md) explains
+Saving chat memory is off by default. GR_16 audit records and local escalation records are always saved. The [walkthrough](docs/product-walkthrough.md) explains
 these controls; [demo scenarios](docs/hcp-demo-scenarios.md) provides other HCP emails and questions.
 
 Preparation parses and chunks the PDFs, creates Neo4j embeddings, verifies both indexes and seeds
-isolated HCP memory. Compatible existing embeddings and unchanged seeds are reused. The clinical
-index currently contains 20 eligible passages; the separate inspection index covers all eight PDFs.
-Chat requires a complete clinical index and never parses or embeds document files on a question.
-New or changed source versions remain staged until review; see [source coverage](docs/all-pdf-testing.md).
+isolated HCP memory. Compatible existing embeddings and unchanged seeds are reused. **Chat and Compare
+use an eight-PDF index: 432 passages in the bundled snapshot.** The [16 guardrails](docs/guardrails.md)
+filter content before retrieval; 84 passages currently match approval, audience and market requirements.
+Semantic and keyword search produce
+candidates, an LLM reranks them, and answers cite the supporting document and PDF page. Source market,
+document type and extraction limitations remain attached throughout generation and verification.
+Chat requires the complete all-PDF index and never parses or embeds document files on a question.
+The original 20-passage clinical index remains for pinned benchmark cases. Clinical source activation
+does not change the full-document library; rebuild that index after changing bundled PDFs.
+See [full-document RAG](docs/rag.md) and [source coverage](docs/all-pdf-testing.md).
 
 For subsequent launches, start the same database and rerun the launcher or preparation steps above;
 unchanged work is reused. Stop foreground Streamlit with Ctrl+C, then stop the chosen database:
@@ -144,13 +151,14 @@ on Windows:
 python -m pytest -q
 python -m ruff check .
 python -m camzyos.cli doctor --strict --all-documents
+python -m evals.demo
 python -m evals.retrieval --ragas
 python -m evals.retrieval --ragas --answers
 ```
 
 The automated pytest suite uses isolated fixtures and does not require a running Neo4j instance or
 real API credentials. `doctor` and the live evaluations require the configured services and prepared
-indexes. The last two commands make paid model calls and create local reports. Compare shows outputs from
+indexes. The live evaluation commands make paid model calls and create local reports. Compare shows outputs from
 generic, document-only and contextual modes; Evaluation scores bundled source-linked cases.
 Scores are diagnostic, not clinical approval. Known false passes, routing failures and evaluator
 limitations remain documented in [evaluation](docs/evaluation.md) and [status](docs/status.md).

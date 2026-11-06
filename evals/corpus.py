@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from camzyos import inspection
+from camzyos import inspection, library
 from camzyos.retrieval import retrieve
 from camzyos.settings import settings, sources
 from camzyos.store import Store
@@ -22,13 +22,15 @@ def main():
     clinical = store.chunks(all_accounts=True)
     # The clinical request below uses the public/general scope, not all_accounts.
     allowed = {c["id"] for c in store.chunks()}
+    permitted = {c["id"] for c in library.chunks(cfg)}
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     path = args.output or Path("reports") / f"all-pdf-smoke-{stamp}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     failed = False
     with path.open("w", encoding="utf-8") as output:
         for document in documents:
-            reference = max(document["chunks"], key=lambda c: len(c["text"]))
+            approved = [c for c in document["chunks"] if c["id"] in permitted]
+            reference = max(approved or document["chunks"], key=lambda c: len(c["text"]))
             query = reference["text"][:600]
             record = {"source_id": document["source_id"], "version_id": document["version_id"],
                       "reference_id": reference["id"], "query": query, "successful": False,
@@ -42,7 +44,13 @@ def main():
                 retrieved = result["retrieved_passages"]
                 ids = [c["id"] for c in retrieved]
                 rank = ids.index(reference["id"]) + 1 if reference["id"] in ids else None
-                clinical_result, _, _ = retrieve(cfg, store, query)
+                library_result, library_backend, library_warnings = retrieve(
+                    {**cfg, "retrieval_scope": "all_documents"}, store, query)
+                library_ids = [c["id"] for c in library_result]
+                library_rank = library_ids.index(reference["id"]) + 1 if reference["id"] in library_ids else None
+                library_policy_passed = set(library_ids) <= permitted and (
+                    library_rank is not None if approved else reference["id"] not in library_ids)
+                clinical_result, _, _ = retrieve({**cfg, "retrieval_scope": "clinical"}, store, query)
                 isolated = all(c["id"] in allowed and not c["id"].startswith("inspection:")
                                for c in clinical_result)
                 correct_source = bool(retrieved) and all(c["source"]["id"] == document["source_id"]
@@ -51,7 +59,10 @@ def main():
                               clinical_result_ids=[c["id"] for c in clinical_result],
                               clinical_source_ids=sorted({c["source"]["id"] for c in clinical_result}),
                               clinical_isolation_passed=isolated,
-                              successful=rank is not None and isolated and correct_source)
+                              library_result_ids=library_ids, library_reference_rank=library_rank,
+                              library_backend=library_backend, library_warnings=library_warnings,
+                              library_reference_eligible=bool(approved), library_policy_passed=library_policy_passed,
+                              successful=rank is not None and library_policy_passed and isolated and correct_source)
                 if (store.chunks(all_accounts=True) != clinical
                         or [d["checksum"] for d in inspection.load(cfg, catalog)] != snapshot):
                     raise RuntimeError("Corpus changed during the suite.")
@@ -61,7 +72,9 @@ def main():
             output.flush()
             failed |= not record["successful"]
             print(json.dumps({"source": document["source_id"], "successful": record["successful"],
-                              "reference_rank": record.get("reference_rank"), "error": record.get("error")}),
+                              "reference_rank": record.get("reference_rank"),
+                              "library_reference_rank": record.get("library_reference_rank"),
+                              "error": record.get("error")}),
                   flush=True)
     print("Report:", path)
     if failed:

@@ -2,12 +2,35 @@ import re
 
 from rank_bm25 import BM25Plus
 
-from camzyos import graph
+from camzyos import graph, guardrails
 from camzyos.reranking import rerank
 
 
 class RetrievalNotReady(RuntimeError):
     pass
+
+
+class RetrievalConfidenceUnavailable(RuntimeError):
+    pass
+
+
+def status(cfg, store, account_id=None):
+    from camzyos import library
+    if library.enabled(cfg):
+        try:
+            return library.status(cfg, account_id)
+        except (OSError, ValueError, KeyError, TypeError):
+            return {"ready": False, "indexed_chunks": 0, "eligible_chunks": 0,
+                    "index_state": "missing or stale all-PDF index", "scope": "all_documents"}
+    return graph.index_status(cfg, store.chunks(account_id))
+
+
+def require_ready(cfg, store, account_id=None):
+    readiness = status(cfg, store, account_id)
+    if not readiness["ready"]:
+        raise RetrievalNotReady("The document index is not ready. Complete document setup before chatting. "
+                                f"Indexed {readiness['indexed_chunks']}/{readiness.get('expected_chunks', readiness['eligible_chunks'])} passages "
+                                f"({readiness['index_state']}).")
 
 
 def require_index(cfg, chunks):
@@ -23,7 +46,18 @@ def tokens(text):
 
 
 def retrieve(cfg, store, question, account_id=None):
-    chunks = store.chunks(account_id)
+    from camzyos import library
+    if library.enabled(cfg):
+        try:
+            return library.retrieve(cfg, question, account_id)
+        except RetrievalConfidenceUnavailable:
+            raise
+        except Exception as exc:
+            raise RetrievalNotReady("All-PDF retrieval is unavailable. Check the database, model API and "
+                                    "complete document index before retrying.") from exc
+    chunks = [c for c in store.chunks(account_id) if not guardrails.source_rules(c["source"], cfg, account_id)]
+    if not chunks:
+        return [], "Neo4j vector + BM25", []
     require_index(cfg, chunks)
     corpus = [tokens(c["text"]) for c in chunks]
     query_tokens = set(tokens(question))
@@ -48,16 +82,17 @@ def retrieve(cfg, store, question, account_id=None):
             if cid in allowed:
                 ranked[cid] = ranked.get(cid, 0) + 1 / (60 + rank)
     selected = sorted(ranked, key=ranked.get, reverse=True)[:candidate_k]
-    candidates = [allowed[cid] for cid in selected]
+    candidates = [{**allowed[cid], "retrieval": {"keyword_matches": len(query_tokens.intersection(tokens(allowed[cid]["text"])))}}
+                  for cid in selected]
     backend, warnings = "Neo4j vector + BM25", []
-    if cfg.get("reranking_enabled") and len(candidates) > 1:
+    if cfg.get("reranking_enabled") and candidates:
         try:
             candidates = rerank(cfg, question, candidates)
             backend += " + LLM relevance reranking"
         except Exception as exc:
-            warnings.append(f"Reranking unavailable ({type(exc).__name__}); using hybrid retrieval order.")
+            raise RetrievalConfidenceUnavailable(f"Relevance scoring unavailable ({type(exc).__name__}).") from exc
     # A source withdrawn while reranking must not escape the current eligibility gate.
-    current = {c["id"] for c in store.chunks(account_id)}
+    current = {c["id"] for c in store.chunks(account_id) if not guardrails.source_rules(c["source"], cfg, account_id)}
     if any(p["id"] not in current for p in candidates):
         raise RetrievalNotReady("Source eligibility changed during retrieval. Retry against the current index.")
-    return candidates[:top_k], backend, warnings
+    return guardrails.above_threshold(cfg, candidates)[:top_k], backend, warnings

@@ -14,8 +14,8 @@ clinical facts or required safety qualifications.
 The bundled workbook contains eight synthetic profiles, eight personality records and 41 historical
 interactions. Historical dates describe supplied records, not necessarily earlier use of this app.
 Its placeholder clinical chunks, publications, local-market summaries and updates are excluded from
-medical evidence. All eight PDFs are available for inspection; only the reviewed active clinical
-corpus may support answers. See [source coverage](all-pdf-testing.md) and [provenance](sources.md).
+medical evidence. All eight PDFs are available for inspection; normal chat uses passages passing the approval, page, audience, expiry and market filters
+from that index. See [source coverage](all-pdf-testing.md) and [provenance](sources.md).
 
 Known emails resolve to their own HCP context. Unknown emails receive general eligible information
 without personal context or persistence. The selector is a local demo convention, not authentication.
@@ -28,7 +28,7 @@ style adaptation. It is an audit trace, not a required introduction.
 
 Full dated conversations remain available in the session. Automatic summarization compacts only
 model input when the context budget approaches capacity; it does not delete original messages.
-Persistence needs a separate opt-in. Previously unsaved turns must not be saved retrospectively by
+Chat-memory persistence needs a separate opt-in. GR_16 audit and local intake records are always saved. Previously unsaved turns must not be saved retrospectively by
 later enabling storage. Clear and Forget are explicit controls. Proactive-outbound consent in the
 workbook does not authorize storing new chats; no proactive messaging is implemented.
 
@@ -40,5 +40,5 @@ summary for review; the app does not send them or register external cases.
 
 Graphiti supplies attributed memory, not clinical truth or workflow orchestration. Document
 eligibility, query rewriting, reranking, working-context summaries and answer verification remain
-application responsibilities. The implemented design is in [architecture](project-flow.md); its
+application responsibilities. The exact policy is the [16 guardrails](guardrails.md). The implemented design is in [architecture](project-flow.md); its
 verified behavior and limitations are in [status](status.md).

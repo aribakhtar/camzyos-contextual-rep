@@ -65,7 +65,7 @@ def test_refusal_distinguishes_validation_from_missing_evidence(cfg, store, tabl
                 data["context_used"] = ["v1:0"]
             data["insufficient"] = failure == "insufficient"
             return engine.Answer(**data)
-        return engine.Verification(all_claims_supported=False, personal_context_supported=True,
+        return engine.Verification(answers_question=True, response_preferences_followed=True, all_claims_supported=False, personal_context_supported=True,
                                    within_scope=True, reason="Unsupported test claim")
     monkeypatch.setattr(engine, "parse", parse)
     result = engine.ask(cfg, store, tables, "a@example.test", "monitoring information")
@@ -101,7 +101,7 @@ def test_silent_style_preference_keeps_context_trace_and_citations(cfg, store, t
         assert payload["personal_assertions_to_verify"] == []
         assert payload["PERSONAL_CONTEXT"] == {"HCP_A.communicationStyle": "Concise"}
         assert payload["claims"][0]["cited_evidence"][0]["id"] == "v1:0"
-        return engine.Verification(all_claims_supported=True, personal_context_supported=True,
+        return engine.Verification(answers_question=True, response_preferences_followed=True, all_claims_supported=True, personal_context_supported=True,
                                    within_scope=True, reason="Test verification")
 
     monkeypatch.setattr(engine, "parse", parse)
@@ -129,7 +129,7 @@ def test_one_correction_is_reverified_before_display(cfg, store, tables, monkeyp
                 assert payload["REVISION"]["reason"] == "Fix the unsupported claim."
             return engine.Answer(**candidate())
         calls["verification"] += 1
-        return engine.Verification(all_claims_supported=repair_succeeds and calls["verification"] == 2,
+        return engine.Verification(answers_question=True, response_preferences_followed=True, all_claims_supported=repair_succeeds and calls["verification"] == 2,
                                    personal_context_supported=True, within_scope=True,
                                    reason="Fix the unsupported claim.")
     monkeypatch.setattr(engine, "parse", parse)
@@ -152,7 +152,7 @@ def test_personal_audit_failure_cannot_be_overridden_by_final_verifier(cfg, stor
             return engine.Decision(route="answer", reason="Test", topic="general", retrieval_query="monitoring")
         if schema is engine.Answer:
             return engine.Answer(**candidate())
-        return engine.Verification(all_claims_supported=True, personal_context_supported=True,
+        return engine.Verification(answers_question=True, response_preferences_followed=True, all_claims_supported=True, personal_context_supported=True,
                                    within_scope=True, reason="Test false positive")
     monkeypatch.setattr(engine, "parse", parse)
     monkeypatch.setattr(grounding, "audit_personal", lambda *a: {"passed": False, "reason": "Unsupported personal fact"})

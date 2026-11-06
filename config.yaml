@@ -5,8 +5,14 @@ embedding_dimensions: 1536
 graphiti_enabled: true
 max_output_tokens: 2200
 retrieval_top_k: 6
+# Chat and Compare search the full prepared PDF library. Clinical benchmarks pin their own scope.
+retrieval_scope: all_documents
 retrieval_candidate_k: 20
 reranking_enabled: true
+retrieval_min_relevance: 2
+# Used only if reranking is disabled; a shared keyword is the minimum retrieval score.
+retrieval_min_keyword_matches: 1
+audience: HCP
 # Application working budget (not the model's maximum capacity). Raw transcripts are retained.
 context_window_tokens: 32000
 context_safety_margin_tokens: 1024

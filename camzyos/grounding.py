@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Literal
 
 import pysbd
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, Field, ValidationError, create_model
 
 from camzyos.llm import structured
 
@@ -82,6 +82,13 @@ overall-benefit claim: related concepts are not automatically equivalent. Keep a
 concise. The claim may be in German and its evidence in English; select original source spans in
 either case. No prose outside the schema.
 """
+AUDIT += """ Preserve the cited source's jurisdiction, document type and time period. A claim about
+what a US label says can be supported by that US label; it cannot establish a German requirement.
+Public overviews and historical/risk-plan records can support attributed statements about their
+contents. They do not automatically establish current local prescribing instructions. A documented
+dated regulatory event is supportable when explicitly stated, without inferring an unprovided
+before/after comparison. Structured-layout flags are not proof of an algorithm's reading order.
+"""
 
 
 def normalized(text):
@@ -142,14 +149,17 @@ def evidence_spans(passages):
         spans = []
         for start, end in zip(boundaries, boundaries[1:]):
             block = text[start:end]
-            for sentence in segmenter.segment(block):
+            # PDF line wrapping is not a sentence boundary. Preserve character offsets so
+            # proof excerpts still copy original bytes, including every original newline.
+            for sentence in segmenter.segment(block.replace("\n", " ").replace("\r", " ")):
                 quote = block[sentence.start:sentence.end]
                 if not quote.strip():
                     continue
                 span_id = f"p{passage_index}:s{len(spans)}"
                 lookup[span_id] = Proof(passage_id=passage["id"], quote=quote)
                 spans.append({"span_id": span_id, "text": quote})
-        annotated.append({"id": passage["id"], "text": text,
+        annotated.append({"id": passage["id"], "text": text, "source": passage.get("source", {}),
+                          "requires_review": passage.get("requires_review", False),
                           "section": passage.get("section"), "proof_spans": spans})
     return annotated, lookup
 
@@ -178,14 +188,21 @@ def audit_claim(cfg, claim, evidence, index):
             supporting_quotes=(list[proof], ...), counter_quotes=(list[proof], ...))
         schema = create_model("CitedClaimReview", __base__=Review,
             checks=(list[check], Field(..., min_length=1, max_length=12)))
-        selected = structured(cfg, schema, AUDIT, {"claim": claim.text,
-            "required_subjects": sorted(subjects(claim.text)),
-            "cited_evidence": annotated,
-            "reviewed_version_comparison": None}, output_tokens=2600)
+        payload = {"claim": claim.text, "required_subjects": sorted(subjects(claim.text)),
+                   "cited_evidence": annotated, "reviewed_version_comparison": None}
+        for request_attempt in range(2):
+            try:
+                selected = structured(cfg, schema, AUDIT, payload, output_tokens=2600 * (request_attempt + 1))
+                break
+            except ValidationError:
+                if request_attempt:
+                    raise
+                # Retry malformed/truncated structured output, never an adverse evidence verdict.
+                continue
         result = resolve_proofs(selected, lookup)
         issues = validate_review(result, claim.text, passages)
         return {**record, "passed": not issues, "issues": issues, "review": result.model_dump(),
-                "proof_selection": selected.model_dump()}
+                "proof_selection": selected.model_dump(), "request_attempts": request_attempt + 1}
     except Exception as exc:
         return {**record, "issues": [f"Claim audit unavailable ({type(exc).__name__})."]}
 

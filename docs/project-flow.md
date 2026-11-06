@@ -1,5 +1,9 @@
 # Architecture and data flow
 
+As of 6 November 2026, normal Chat and grounded Compare use eligible passages from the complete eight-PDF index.
+See [full-document RAG](rag.md) for the current retrieval path and HCP graph explanation.
+The clinical eligibility pipeline described below remains the source-pinned benchmark path.
+
 The application uses a bounded Python workflow, Streamlit, Graphiti, Neo4j and SQLite. LangGraph is
 not the orchestrator. HCP context and clinical evidence are stored and checked separately.
 
@@ -12,8 +16,8 @@ flowchart TD
     BOOK[HCP workbook] --> PROFILE[Resolve own profile, personality and interactions]
     BOOK --> SEED[Seed isolated Graphiti groups]
     UI[HCP question and own conversation] --> POLICY[Policy and event checks]
-    POLICY -->|Blocked or insufficient temporal evidence| HANDOFF[Unsent handoff draft]
-    POLICY -->|Allowed| QUERY[Working-context budget and one query rewrite]
+    POLICY -->|Rule-specific escalation| HANDOFF[Unsent handoff draft]
+    POLICY -->|Allowed| QUERY[Working-context budget and focused query rewrite]
     QUERY --> RETRIEVE[Eligible vector and BM25 retrieval]
     REVIEW --> RETRIEVE
     RETRIEVE --> RANK[Rerank up to 20 candidates and select 6]
@@ -42,16 +46,15 @@ registry enforces market, audience, account scope, dates and active-version elig
 
 At question time, early rules check privacy, adverse-event reports and other handoff boundaries.
 The classifier receives the current question and own conversation/working summary, then produces
-one retrieval query. It does not receive HCP personality or recalled Graphiti facts. The query is
+a focused query, or up to three queries for explicitly requested parts. It does not receive HCP personality or recalled Graphiti facts. The query is
 embedded and used alongside BM25; reciprocal rank fusion combines candidates, followed by LLM
 relevance reranking. Each candidate has a required score field; the application maps fields back to
-the original passages and sorts by score, preserving hybrid order for ties. Failed reranking reports
-a warning and keeps hybrid order. Missing/unavailable
+the original passages and sorts by score, preserving hybrid order for ties. Failed relevance scoring invokes GR_15 confidence review. Missing/unavailable
 vector retrieval blocks clinical answers; there is no lexical-only replacement for a missing index.
 
 Generation receives the question, own-HCP profile/personality, relevant workbook interactions,
 Graphiti recall, conversation context and eligible passages. Safety instructions are fixed and sent
-on each request; no persistent per-HCP system prompt or multi-query expansion is implemented.
+on each request; no persistent per-HCP system prompt is used. Multipart question queries preserve coverage of each requested topic.
 The structured response separates clinical claims, evidence IDs and personal-context keys.
 
 Each claim is audited against its own cited passages. The auditor selects excerpt IDs and the

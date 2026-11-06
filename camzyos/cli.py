@@ -1,7 +1,7 @@
 import argparse
 import json
 
-from camzyos import graph, inspection
+from camzyos import graph, inspection, library
 from camzyos.ingest import build, fetch_public, prepare_demo, process_document, publish_version
 from camzyos.profiles import context, load_profiles
 from camzyos.settings import settings, sources
@@ -94,13 +94,16 @@ def main():
                   "api_key_configured": bool(cfg["api_key"]), "neo4j_connected": graph.status(cfg),
                   "active_chunks": len(store.chunks()),
                   "retrieval_index": graph.index_status(cfg, store.chunks(all_accounts=True))}
-        if args.all_documents:
+        if args.all_documents or library.enabled(cfg):
             report["all_document_index"] = inspection.report(cfg, catalog)
+        report["chat_index"] = report["all_document_index"] if library.enabled(cfg) else report["retrieval_index"]
+        report["retrieval_scope"] = cfg.get("retrieval_scope", "clinical")
         print(json.dumps(report, indent=2))
         if args.strict and not (all(report[key] for key in ("workbook_found", "pdf_folder_found",
                                                            "api_key_configured", "neo4j_connected"))
-                                and report["retrieval_index"]["ready"]
-                                and (not args.all_documents or report["all_document_index"]["ready"])):
+                                and report["chat_index"]["ready"]
+                                and (not args.all_documents or (report["all_document_index"]["ready"]
+                                                                and report["retrieval_index"]["ready"]))):
             raise SystemExit(1)
 
 

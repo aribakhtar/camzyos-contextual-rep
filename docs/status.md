@@ -1,12 +1,19 @@
 # Implementation status
 
+Current retrieval update, 6 November 2026: Chat and grounded Compare use the eight-PDF index through
+the [RAG pipeline](rag.md), with the [16 guardrails](guardrails.md) filtering sources and routing escalations.
+The current filters leave 84 of 432 indexed passages eligible. Personality review has no word limits.
+See [current verification](verification-2026-11-06.md) for the new tests. The 20-passage corpus is retained for the original pinned
+clinical benchmark. The results below record the earlier 30 October configuration and are not a
+benchmark of the new full-library answer flow.
+
 Recorded on 30 October 2026. The prototype runs locally with bundled synthetic HCP data. The
 [evaluation guide](evaluation.md) separates the full benchmark, later targeted fixes and UI checks.
 Historical values are preserved in the [evaluation snapshot](evaluation-results.json).
 
 | Area | Verified state |
 |---|---|
-| Software checks | Latest local suite: 365 tests and 14 subtests passed; Ruff passed. One upstream Graphiti/Pydantic deprecation warning remains. |
+| Software checks | Historical suite: 365 tests and 14 subtests passed; Ruff passed. One upstream Graphiti/Pydantic deprecation warning remains. |
 | Clinical index | 20/20 eligible passages, ONLINE, from the recorded EMA SmPC version |
 | Inspection index | 432/432 passages across eight PDFs and 203 pages, ONLINE; all eight corpus smoke checks passed |
 | Startup | Document preparation, strict index checks and HCP seeding precede Streamlit through `scripts/start.ps1`; unchanged embeddings/seeds are reused |

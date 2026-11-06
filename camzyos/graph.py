@@ -182,11 +182,14 @@ async def memory(client, hcp_id, query=None, episode=None, seed=False):
 
 def recall(cfg, hcp_id, query):
     # Construct outside the event loop: Neo4jDriver otherwise schedules a duplicate schema build.
-    return asyncio.run(memory(memory_client(cfg), hcp_id, query=query))
+    from camzyos.guardrails import confidential
+    return [item for item in asyncio.run(memory(memory_client(cfg), hcp_id, query=query))
+            if not confidential(item)]
 
 
 def retain(cfg, hcp_id, episode, consent=False, seed=False):
-    if not consent or not hcp_id:
+    from camzyos.guardrails import confidential
+    if not consent or not hcp_id or confidential(episode):
         return None
     return asyncio.run(memory(memory_client(cfg), hcp_id, episode=episode, seed=seed))
 

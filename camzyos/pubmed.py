@@ -60,11 +60,12 @@ def parse_records(xml):
     return result
 
 
-def eligible_records(records, approved_pmids):
+def eligible_records(records, approved_pmids, market="DE", audience="HCP"):
     return [{"id": r["id"], "version_id": r["id"] + ":" + hashlib.sha256(
                 json.dumps(r, sort_keys=True).encode()).hexdigest()[:12], "text": r["text"], "page": None,
              "page_end": None, "section": "Abstract only",
              "source": {"id": r["id"], "title": r["title"], "url": r["url"], "pmid": r["pmid"],
+                        "eligible": True, "market": market, "audience": audience, "kind": "publication",
                         "doi": r["doi"], "journal": r["journal"], "year": r["year"], "authors": r["authors"],
                         "contribution": "Reviewed publication abstract; full text not accessed."}}
             for r in records if r["pmid"] in {str(x) for x in approved_pmids} and not r["requires_review"]]

@@ -8,7 +8,7 @@ from camzyos import graph, reranking, retrieval
 
 def passages(count=3):
     return [{"id": f"p{i}", "text": f"Synthetic retrieval fixture {i}", "version_id": "fixture",
-             "source": {"title": "Fixture", "eligible": True}} for i in range(count)]
+             "source": {"title": "Fixture", "eligible": True, "market": "DE", "audience": "HCP"}} for i in range(count)]
 
 
 def test_reranker_reorders_original_passages_and_keeps_stable_ties(cfg, monkeypatch):
@@ -91,7 +91,7 @@ def test_candidate_pool_is_expanded_before_final_k_and_foreign_ids_are_filtered(
         return ["foreign", "inspection:x"] + [p["id"] for p in chunks]
     def rank(config, query, candidates):
         seen["ids"] = [c["id"] for c in candidates]
-        return list(reversed(candidates))
+        return [{**p, "retrieval": {"relevance": 3}} for p in reversed(candidates)]
     monkeypatch.setattr(graph, "vector_search", vector)
     monkeypatch.setattr(retrieval, "rerank", rank)
     result, backend, warnings = retrieval.retrieve(cfg, store, "fixture", "ACCOUNT_A")
@@ -101,15 +101,15 @@ def test_candidate_pool_is_expanded_before_final_k_and_foreign_ids_are_filtered(
     assert store.scopes == ["ACCOUNT_A", "ACCOUNT_A"]
 
 
-def test_reranker_failure_is_visible_and_preserves_hybrid_order(cfg, monkeypatch, indexed):
+def test_reranker_failure_requires_confidence_review(cfg, monkeypatch, indexed):
     cfg.update(reranking_enabled=True, retrieval_top_k=2, retrieval_candidate_k=8)
     store = ScopedStore()
     def fail(*args):
         raise TimeoutError("sk-secret")
     monkeypatch.setattr(retrieval, "rerank", fail)
-    result, backend, warnings = retrieval.retrieve(cfg, store, "fixture")
-    assert len(result) == 2 and backend == "Neo4j vector + BM25"
-    assert len(warnings) == 1 and "TimeoutError" in warnings[0] and "sk-secret" not in warnings[0]
+    with pytest.raises(retrieval.RetrievalConfidenceUnavailable) as error:
+        retrieval.retrieve(cfg, store, "fixture")
+    assert "TimeoutError" in str(error.value) and "sk-secret" not in str(error.value)
 
 
 def test_withdrawal_during_reranking_blocks_use(cfg, monkeypatch, indexed):

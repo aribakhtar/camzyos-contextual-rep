@@ -99,6 +99,30 @@ def test_no_source_text_cannot_supply_proof(cfg, monkeypatch):
     assert not result["passed"]
 
 
+def test_pdf_line_wrapping_does_not_fragment_a_complete_proof_sentence():
+    text = "A source sentence with a critical\nqualification and original line breaks."
+    annotated, lookup = grounding.evidence_spans([{"id": "p1", "text": text}])
+    assert len(lookup) == 1
+    assert annotated[0]["proof_spans"][0]["text"] == text
+    assert next(iter(lookup.values())).quote == text
+
+
+def test_malformed_audit_can_retry_but_must_return_valid_cited_proof(cfg, monkeypatch):
+    calls = []
+    def structured(config, schema, instruction, payload, **kwargs):
+        calls.append(payload)
+        if len(calls) == 1:
+            return schema.model_validate_json('{"covers_entire_claim":')
+        assert payload == calls[0]
+        span = payload["cited_evidence"][0]["proof_spans"][0]
+        return selected_review(schema, span["span_id"])
+    monkeypatch.setattr(grounding, "structured", structured)
+    result = grounding.audit_claim(cfg, engine.Claim(text="Test claim", evidence_ids=["p1"]),
+                                   [{"id": "p1", "text": "Exact source statement."}], 0)
+    assert result["passed"] and result["request_attempts"] == 2
+    assert result["review"]["checks"][0]["supporting_quotes"][0]["quote"] == "Exact source statement."
+
+
 @pytest.mark.parametrize("supported,assertions,expected", [
     (True, [], True), (False, ["Invented workplace"], False), (True, ["Invented workplace"], False)])
 def test_personal_audit_needs_both_support_and_no_unsupported_assertions(cfg, monkeypatch, supported, assertions, expected):

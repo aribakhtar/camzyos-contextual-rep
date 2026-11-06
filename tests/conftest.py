@@ -9,7 +9,7 @@ from camzyos.store import Store
 @pytest.fixture
 def indexed(monkeypatch):
     """Synthetic ready index for answer-policy tests; readiness has separate failure tests."""
-    from camzyos import graph, grounding
+    from camzyos import graph, grounding, presentation
     monkeypatch.setattr(graph, "index_status", lambda cfg, chunks: {
         "ready": bool(chunks), "eligible_chunks": len(chunks), "indexed_chunks": len(chunks),
         "index_state": "ONLINE", "missing_ids": []})
@@ -18,12 +18,13 @@ def indexed(monkeypatch):
     # quotation and failure-boundary behavior is exercised separately in test_grounding_policy.py.
     monkeypatch.setattr(grounding, "audit", lambda *args: {"passed": True, "claims": [], "issues": []})
     monkeypatch.setattr(grounding, "audit_personal", lambda *args: {"passed": True, "reason": "Fixture audit"})
+    monkeypatch.setattr(presentation, "review", lambda *args: {"passed": True, "issues": []})
 
 
 @pytest.fixture
 def cfg(tmp_path):
     return {**settings(), "data_dir": tmp_path, "api_key": "", "neo4j_password": "",
-            "graphiti_enabled": False, "reranking_enabled": False}
+            "graphiti_enabled": False, "reranking_enabled": False, "retrieval_scope": "clinical"}
 
 
 @pytest.fixture

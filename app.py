@@ -4,7 +4,7 @@ import json
 
 import streamlit as st
 
-from camzyos import conversation, graph, inspection, profiles
+from camzyos import conversation, graph, inspection, library, profiles, retrieval
 from camzyos.engine import ask
 from camzyos.evaluation import cases, evaluate
 from camzyos.ingest import build, fetch_public, process_document, publish_version
@@ -56,7 +56,8 @@ with st.sidebar:
     else:
         st.info("Email not found. General approved-content mode; no personal history.")
     persist = st.checkbox("Save my new conversations and memory", value=False, disabled=not bool(hcp))
-    st.caption("Selected context is sent to your configured model. Storage is a separate opt-in.")
+    st.caption("Selected context is sent to your configured model. Chat memory is opt-in. "
+               "GR_16 always records the question, user, sources, decision and timestamp locally.")
     st.caption("Full conversation retained in this browser session. Enable saving to keep new turns after the session ends.")
     search = st.toggle("PubMed search", value=cfg["pubmed_enabled"], disabled=not bool(hcp))
     st.caption("Off disables live search; reviewed publications already imported remain available.")
@@ -78,10 +79,17 @@ with st.sidebar:
         st.session_state.history_loaded = True
         st.session_state.hcp_sessions.pop(identity, None)
     page = st.radio("View", ["Chat", "Compare", "Evaluation", "Sources & updates", "Context"])
-    active_chunks = store.chunks(cfg['account_map'].get(hcp['hcp_id']) if hcp else None)
-    readiness = graph.index_status(cfg, active_chunks)
+    account_id = cfg['account_map'].get(hcp['hcp_id']) if hcp else None
+    readiness = retrieval.status(cfg, store, account_id)
     if readiness["ready"]:
-        st.success(f"Retrieval ready: {readiness['indexed_chunks']}/{len(active_chunks)} passages indexed")
+        if library.enabled(cfg):
+            st.success(f"Retrieval ready: {readiness['document_count']} PDFs · "
+                       f"{readiness['indexed_chunks']}/{readiness['expected_chunks']} passages indexed")
+            st.caption(f"{readiness['eligible_chunks']} passages currently eligible for this HCP. "
+                       "Approval, expiry, audience and market rules apply before retrieval.")
+        else:
+            st.success(f"Retrieval ready: {readiness['indexed_chunks']}/"
+                       f"{readiness['eligible_chunks']} passages indexed")
     else:
         st.warning("Retrieval not ready. Complete Sources & updates before asking clinical questions.")
     if not cfg["api_key"]:
@@ -112,10 +120,17 @@ def render(result, key):
             st.markdown(f"**[{i}] {source['title']}**")
             st.caption(f"{item.get('section', '')} · PDF pages {item.get('page')}–{item.get('page_end')} "
                        f"· version {item['version_id']}")
+            st.caption(f"Market: {source.get('market', 'unspecified')} · "
+                       f"Document type: {source.get('kind', 'publication')}")
+            if item.get("requires_review"):
+                st.caption("This page contains layout that may need checking in the original PDF, "
+                           "especially tables and diagrams.")
             if source.get("url"):
                 st.link_button("Publisher source", source["url"])
             st.text(item["text"])
     with st.expander("Personal context used"):
+        if style := result.get("response_style"):
+            st.caption(f"Presentation: {style['detail']} detail · {style['layout']}")
         st.json(result.get("context_used", {}))
     if result.get("discoveries"):
         with st.expander("PubMed discovery / review queue"):
@@ -123,12 +138,27 @@ def render(result, key):
             for record in result["discoveries"]:
                 st.markdown(f"[{record['title']}]({record['url']}) — PMID {record['pmid']}")
                 st.caption("Eligible only if reviewed in config.yaml; corrections/retractions are checked.")
+    if result.get("retrieved_evidence"):
+        with st.expander("Retrieved passages"):
+            st.caption("Search query: " + result.get("retrieval_query", ""))
+            for rank, passage in enumerate(result["retrieved_evidence"], 1):
+                source = passage["source"]
+                st.markdown(f"**{rank}. {source['title']}** · {source.get('market', '')} · "
+                            f"PDF page {passage.get('page')}")
+                st.text(passage["text"])
     if result.get("handoff"):
+        st.info(f"{result['handoff']['rule_id']} · Escalation target: {result['handoff']['destination']}")
         with st.expander("Handoff summary — review before sharing", expanded=True):
             st.json(result["handoff"])
             st.download_button("Download summary (does not send)",
                                json.dumps(result["handoff"], ensure_ascii=False, indent=2),
                                file_name="handoff.json", mime="application/json", key=f"handoff-{key}")
+    if result.get("review_required"):
+        st.info("GR_10 · Medical review required. The answer uses medical sources only.")
+    if result.get("escalations"):
+        st.caption("Escalation logged locally. External submission to the designated team is pending.")
+    if result.get("audit"):
+        st.caption("GR_16 · Audit saved: " + result["audit"]["id"])
 
 
 if page == "Context":
@@ -136,10 +166,10 @@ if page == "Context":
     st.json(profiles.context(tables, hcp))
     st.info("Account policies require explicit HCP-to-account mappings and verified source documents.")
 elif page == "Sources & updates":
-    st.subheader("Source registry and versioned updates")
+    st.subheader("PDF library and source versions")
     st.warning("Local reviewer tools. Prototype eligibility is not sponsor compliance approval.")
-    st.caption("Prepare documents here before chat: parse → chunk → index → review → activate. "
-               "Chat never parses or embeds document files.")
+    st.caption("Chat searches eligible passages in the prepared PDF library. Rebuild the all-PDF index after changing "
+               "bundled documents. Chat never parses or embeds document files on a question.")
     st.json(readiness)
     if st.button("Build eligible clinical document index", disabled=not bool(cfg["api_key"])):
         with st.spinner("Preparing bundled documents and checking the complete index..."):
@@ -150,10 +180,10 @@ elif page == "Sources & updates":
                 st.error(f"Build incomplete ({type(exc).__name__}). Check configuration and retry.")
     st.dataframe([{k: s.get(k, "") for k in ("id", "title", "market", "audience", "eligible", "contribution")}
                   for s in catalog], hide_index=True)
-    with st.expander("All-PDF testing index", expanded=True):
+    with st.expander("All-PDF library index", expanded=True):
         st.caption("Search extracted text from every bundled PDF, including staged and excluded sources. "
-                   "These results are for inspection and testing; they do not enter chatbot answers.")
-        if st.button("Build all-PDF testing index", disabled=not bool(cfg["api_key"])):
+                   "Chat and Compare apply approval, expiry, audience and market filters to this index.")
+        if st.button("Build all-PDF library index", disabled=not bool(cfg["api_key"])):
             with st.spinner("Indexing all PDFs; unchanged embeddings are reused..."):
                 try:
                     inspection.build(cfg, catalog)
@@ -194,10 +224,13 @@ elif page == "Sources & updates":
                                    file_name="inspection.json", mime="application/json")
             except Exception as exc:
                 st.error(f"Inspection retrieval failed ({type(exc).__name__}). No answer was generated.")
+    st.subheader("Reviewed clinical benchmark versions")
+    st.caption("The controls below manage the separate reviewed clinical corpus used by pinned evaluation "
+               "cases. They do not replace the bundled PDFs in the all-document library.")
     selected = st.selectbox("Source", catalog, format_func=lambda s: s["title"])
     uploaded = st.file_uploader("Stage a replacement PDF", type=["pdf"])
     st.caption("Uploading starts parsing, chunking and indexing automatically and may use your model API. "
-               "The new version stays hidden from chat until reviewed and activated.")
+               "The new version stays outside the clinical benchmark until reviewed and activated.")
     retry = st.button("Process / index source", disabled=not bool(cfg["api_key"]))
     upload_id = (selected["id"], hashlib.sha256(uploaded.getvalue()).hexdigest()) if uploaded else None
     new_upload = upload_id and st.session_state.get("processed_upload") != upload_id
@@ -235,7 +268,7 @@ elif page == "Sources & updates":
                 st.error(str(exc))
         if st.button("Withdraw this version"):
             store.deactivate(version["id"])
-            st.success("Version excluded from new answers.")
+            st.success("Version excluded from the reviewed clinical benchmark.")
     if st.button("Sync active document embeddings to Neo4j", disabled=not bool(cfg["api_key"])):
         with st.spinner("Embedding eligible passages..."):
             try:
@@ -246,6 +279,8 @@ elif page == "Evaluation":
     st.subheader("Test retrieval and answer quality")
     st.caption("Runs use the selected HCP without saving chat memory. PubMed is disabled. "
                "RAGAS uses paid judge calls; scores do not replace clinical review.")
+    st.caption("Bundled evaluation cases use their original reviewed clinical corpus and passage IDs. "
+               "Use Chat or Compare to ask questions against eligible sources in the eight-PDF index.")
     case = st.selectbox("Test case", cases(), format_func=lambda c: c["question"])
     with st.expander("Reference and expected source"):
         st.json(case)
@@ -312,7 +347,7 @@ else:
     chat_ready = readiness["ready"] and bool(cfg["api_key"])
     if not chat_ready:
         st.info("Chat opens after document preparation is complete. Use Sources & updates to build the "
-                "eligible document index and configure the model API key.")
+                "all-PDF library index and configure the model API key.")
     question = st.chat_input("Ask about CAMZYOS", disabled=not chat_ready)
     if question:
         history = list(st.session_state.messages)

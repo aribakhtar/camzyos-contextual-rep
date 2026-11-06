@@ -1,8 +1,8 @@
-"""All-PDF retrieval for local testing/review; never a clinical-answer evidence source.
+"""Versioned full-PDF extraction, indexing and direct passage search.
 
-The fixed Neo4j label/index and inspection: IDs are deliberately separate from
-CamzyosChunk. Staged, US, public, historical and structured text stays inspectable
-without activating it or changing any clinical eligibility rule.
+The original inspection label/index and IDs remain stable for existing embeddings.
+library.py also uses these passages for source-attributed all-document chat. This
+does not activate them in the separate reviewed German clinical benchmark corpus.
 """
 import hashlib
 import json
@@ -327,13 +327,13 @@ def _vector_search(cfg, question, chunks):
                                      base_url=cfg["base_url"]), return_properties=["id", "text"])
         vector = retriever.embedder.embed_query(question, dimensions=cfg["embedding_dimensions"])
         response = retriever.get_search_results(query_vector=vector, top_k=cfg["retrieval_top_k"],
-            filters={"version_id": {"$in": sorted({c["version_id"] for c in chunks})},
+            filters={"id": {"$in": [c["id"] for c in chunks]},
                      "embedding_model": cfg["embedding_model"], "corpus": "inspection",
                      "clinical_evidence": False})
         return [row["node"]["id"] for row in response.records]
 
 
-def search(cfg, catalog, question, source_id=None, account_id=None):
+def search(cfg, catalog, question, source_id=None, account_id=None, allowed_ids=None):
     if not question.strip():
         raise ValueError("An inspection query is required.")
     documents = load(cfg, catalog)
@@ -341,6 +341,7 @@ def search(cfg, catalog, question, source_id=None, account_id=None):
     if not index_status(cfg, all_chunks)["ready"]:
         raise RuntimeError("Inspection index is not ready; run index-all before testing.")
     chunks = [c for c in all_chunks if (not source_id or c["source"]["id"] == source_id)
+              and (allowed_ids is None or c["id"] in allowed_ids)
               and (not c["source"].get("account_id") or c["source"]["account_id"] == account_id)]
     if not chunks:
         raise ValueError("Unknown or empty inspection source.")

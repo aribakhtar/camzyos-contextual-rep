@@ -1,0 +1,498 @@
+{
+  "date": "2026-11-06",
+  "model": "gpt-4.1-mini",
+  "test_kind": "Latest result per regression case, including reruns after fixes",
+  "unit_tests_passed": 441,
+  "subtests_passed": 14,
+  "ruff": "passed",
+  "live_cases_passed": 25,
+  "live_cases_total": 25,
+  "cases": [
+    {
+      "case_id": "HCP_DE_000-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "bullets",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_000-definition.json",
+      "elapsed_seconds": 35.9
+    },
+    {
+      "case_id": "HCP_DE_000-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "bullets",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_000-use-safety.json",
+      "elapsed_seconds": 63.6
+    },
+    {
+      "case_id": "HCP_DE_001-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_001-definition.json",
+      "elapsed_seconds": 25.9
+    },
+    {
+      "case_id": "HCP_DE_001-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_001-use-safety.json",
+      "elapsed_seconds": 60.2
+    },
+    {
+      "case_id": "HCP_DE_009-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "brief",
+        "layout": "bullets",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_009-definition.json",
+      "elapsed_seconds": 21.4
+    },
+    {
+      "case_id": "HCP_DE_009-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "brief",
+        "layout": "bullets",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_009-use-safety.json",
+      "elapsed_seconds": 42.6
+    },
+    {
+      "case_id": "HCP_DE_016-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_016-definition.json",
+      "elapsed_seconds": 24.7
+    },
+    {
+      "case_id": "HCP_DE_016-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_016-use-safety.json",
+      "elapsed_seconds": 42.7
+    },
+    {
+      "case_id": "HCP_DE_022-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_022-definition.json",
+      "elapsed_seconds": 22.0
+    },
+    {
+      "case_id": "HCP_DE_022-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_022-use-safety.json",
+      "elapsed_seconds": 56.4
+    },
+    {
+      "case_id": "HCP_DE_024-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "German",
+        "order": "safety_first"
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073725Z/HCP_DE_024-definition.json",
+      "elapsed_seconds": 36.8
+    },
+    {
+      "case_id": "HCP_DE_024-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "English",
+        "order": "safety_first"
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073725Z/HCP_DE_024-use-safety.json",
+      "elapsed_seconds": 44.5
+    },
+    {
+      "case_id": "HCP_DE_031-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "brief",
+        "layout": "bullets",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_031-definition.json",
+      "elapsed_seconds": 22.9
+    },
+    {
+      "case_id": "HCP_DE_031-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "brief",
+        "layout": "bullets",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_031-use-safety.json",
+      "elapsed_seconds": 37.5
+    },
+    {
+      "case_id": "HCP_DE_035-definition",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "German",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/HCP_DE_035-definition.json",
+      "elapsed_seconds": 21.6
+    },
+    {
+      "case_id": "HCP_DE_035-use-safety",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "paragraphs",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/HCP_DE_035-use-safety.json",
+      "elapsed_seconds": 33.8
+    },
+    {
+      "case_id": "ae",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_02"
+      ],
+      "target": "Pharmacovigilance",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/ae.json",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "case_id": "comparison",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_05"
+      ],
+      "target": "MSL",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/comparison.json",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "case_id": "complaint",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_03"
+      ],
+      "target": "Quality",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/complaint.json",
+      "elapsed_seconds": 3.0
+    },
+    {
+      "case_id": "human",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_14"
+      ],
+      "target": "Rep or MSL",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/human.json",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "case_id": "medical-boundary",
+      "passed": true,
+      "decision": "answer",
+      "rules": [
+        "GR_10"
+      ],
+      "target": "Medical",
+      "source_ids": [
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "default",
+        "layout": "bullets",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072703Z/medical-boundary.json",
+      "elapsed_seconds": 46.9
+    },
+    {
+      "case_id": "no-source",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_11"
+      ],
+      "target": "Rep or MSL",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072703Z/no-source.json",
+      "elapsed_seconds": 11.7
+    },
+    {
+      "case_id": "off-label",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_01"
+      ],
+      "target": "Medical Information",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/off-label.json",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "case_id": "patient",
+      "passed": true,
+      "decision": "handoff",
+      "rules": [
+        "GR_04"
+      ],
+      "target": "MSL",
+      "source_ids": [],
+      "response_style": {
+        "detail": null,
+        "layout": null,
+        "language": null,
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T072442Z/patient.json",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "case_id": "prakash-detailed",
+      "passed": true,
+      "decision": "answer",
+      "rules": [],
+      "target": null,
+      "source_ids": [
+        "de_fachinformation",
+        "eu_smpc"
+      ],
+      "response_style": {
+        "detail": "detailed",
+        "layout": "paragraphs",
+        "language": "English",
+        "order": null
+      },
+      "audit_persisted": true,
+      "local_report": "reports/demo-contract-20261106T073214Z/prakash-detailed.json",
+      "elapsed_seconds": 36.6
+    }
+  ]
+}

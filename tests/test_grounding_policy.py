@@ -51,16 +51,23 @@ def test_pronoun_event_uses_own_conversation_exposure(cfg, store, tables):
     "What has changed since we last spoke in August?", "Tell me what is new, not what I already know.",
     "Anything new since my last email in August? Three lines max.", "Was hat sich seit August geändert?",
 ])
-def test_temporal_plan_resolves_own_context_but_requires_reviewed_comparison(cfg, store, tables, monkeypatch, question):
+def test_update_requests_use_retrieval_instead_of_a_blanket_block(cfg, store, tables, monkeypatch, indexed, question):
+    cfg["api_key"] = "fixture"
     tables = copy.deepcopy(tables)
     tables["HCP_Profile"][0]["last_interaction_date"] = "2026-08-12"
-    tables["HCP_Profile"][1]["last_interaction_date"] = "2099-01-01"
-    monkeypatch.setattr(engine, "parse", lambda *a: pytest.fail("Do not generate unsupported change claims"))
+    calls = []
+    def parse(config, schema, instruction, payload):
+        calls.append(schema)
+        if schema is engine.Decision:
+            return engine.Decision(route="answer", reason="Update question", topic="general",
+                                   retrieval_query="monitoring changes", asks_for_changes=True)
+        return engine.Answer(introduction="", context_used=[], limitations=[], claims=[], insufficient=True)
+    monkeypatch.setattr(engine, "parse", parse)
     result = engine.ask(cfg, store, tables, "a@example.test", question)
-    assert result["policy_route"] == "unverified_update"
-    assert result["context_used"] == {"HCP_A.last_interaction_date": "2026-08-12"}
-    assert result["temporal_plan"]["steps"][-1]["status"] == "blocked_without_reviewed_comparison"
-    assert "2099" not in str(result) and result["citations"] == []
+    assert calls == [engine.Decision, engine.Answer]
+    assert result["policy_route"] == "insufficient" and result["rule_ids"] == ["GR_11"]
+    assert result["handoff"]["destination"] == "Rep or MSL"
+    assert "temporal_plan" not in result
 
 
 @pytest.mark.parametrize("question", ["What is the current approved indication?", "How is CAMZYOS administered?"])

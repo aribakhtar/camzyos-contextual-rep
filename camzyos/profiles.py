@@ -5,6 +5,8 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils.datetime import from_excel
 
+from camzyos.guardrails import confidential
+
 
 def load_profiles(path) -> dict[str, list[dict]]:
     # BytesIO avoids keeping Excel files open after loading.
@@ -56,11 +58,11 @@ def context(tables: dict, hcp: dict | None) -> dict:
         return {}
     identity = hcp["hcp_id"]
     return {
-        "profile": {k: hcp.get(k, "") for k in PROFILE_FIELDS},
+        "profile": {k: hcp.get(k, "") for k in PROFILE_FIELDS if not confidential(hcp.get(k, ""))},
         "profile_record": identity,
-        "personality": [p for p in tables.get("Personality", []) if p.get("hcp_id") == identity],
+        "personality": [p for p in tables.get("Personality", []) if p.get("hcp_id") == identity and not confidential(p)],
         "interactions": sorted(
-            [p for p in tables.get("HCP_Interactions", []) if p.get("hcp_id") == identity],
+            [p for p in tables.get("HCP_Interactions", []) if p.get("hcp_id") == identity and not confidential(p)],
             key=lambda p: p.get("date", p.get("interaction_date", "")), reverse=True,
         )[:8],
     }

@@ -42,6 +42,14 @@ def scope_signal(question):
     return None
 
 
+def promotional_signal(question):
+    for match in re.finditer(r"\bpromot\w*|\badvertis\w*|\bmarketing\b|\bsales\b|\bpersuad\w*|"
+                             r"\bconvinc\w*|\bcampaign\b|\bwerb\w*|\büberzeug\w*", question, re.I):
+        if not negated_prefix(question, match.start()):
+            return match.group()
+    return None
+
+
 def normalized_quote(quote, question, history=()):
     quoted = " ".join(quote.split()).casefold()
     texts = [question] + [row.get("content", "") for row in history if row.get("role") == "user"]

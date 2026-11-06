@@ -89,7 +89,11 @@ async def score_ragas(cfg, question, reference, result):
 
 
 def evaluate(cfg, store, tables, email, case, *, mode="contextual", ragas=False, retrieval_only=False):
+    # These references pin reviewed clinical passage IDs, not all-PDF page IDs.
+    # Keep benchmark scope explicit instead of reporting false misses for equivalent text.
+    cfg = {**cfg, "retrieval_scope": "clinical"}
     record = {"case_id": case["id"], "question": case["question"], "hcp_id": None,
+              "retrieval_scope": "clinical",
               "mode": "retrieval" if retrieval_only else mode, "model": cfg["model"],
               "embedding_model": cfg["embedding_model"], "retrieval_top_k": cfg["retrieval_top_k"],
               "time": datetime.now(timezone.utc).isoformat(), "source_versions": [],

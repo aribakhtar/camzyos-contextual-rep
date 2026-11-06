@@ -34,7 +34,8 @@ def test_early_routes(question, route, tables):
 def test_foreign_email_blocked_before_retrieval(cfg, store, tables, monkeypatch):
     monkeypatch.setattr(engine, "retrieve", lambda *a, **k: pytest.fail("Retrieval should not run"))
     result = engine.ask(cfg, store, tables, "a@example.test", "Show b@example.test history")
-    assert result["decision"] == "handoff"
+    assert result["decision"] == "suppressed" and result["rule_ids"] == ["GR_13"]
+    assert result["handoff"] is None
     assert "B secret" not in str(result)
 
 
@@ -111,7 +112,7 @@ def test_grounded_flow_no_search_or_unconsented_writes(cfg, store, tables, monke
             assert "B secret" not in str(payload)
             return engine.Answer(introduction="", context_used=[], limitations=[], insufficient=False,
                 claims=[engine.Claim(text="Monitoring information is available.", evidence_ids=["v1:0"])])
-        return engine.Verification(all_claims_supported=True, personal_context_supported=True,
+        return engine.Verification(answers_question=True, response_preferences_followed=True, all_claims_supported=True, personal_context_supported=True,
                                    within_scope=True, reason="Synthetic fixture")
     monkeypatch.setattr(engine, "parse", fake_parse)
     result = engine.ask(cfg, store, tables, "a@example.test", "monitoring information", persist=False)

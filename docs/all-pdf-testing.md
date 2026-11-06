@@ -1,6 +1,8 @@
 # Test retrieval across every bundled PDF
 
-Every supplied PDF is now parsed, chunked, embedded and searchable for extraction/retrieval testing. Indexing a file for testing does not activate it as German clinical evidence. The two paths use separate Neo4j labels, indexes and passage IDs; inspection text cannot enter the clinical answer schema or verifier.
+Every supplied PDF is parsed, chunked, embedded and searchable. As of 6 November 2026, normal Chat
+and grounded Compare also use this full library through [the all-document RAG pipeline](rag.md).
+The separate clinical benchmark retains its original source eligibility and passage IDs.
 
 | PDF | Pages | Inspection chunks |
 |---|---:|---:|
@@ -43,7 +45,7 @@ From the repository directory in PowerShell, with Neo4j running and the API key 
 .\.venv\Scripts\python.exe -m camzyos.cli doctor --strict --all-documents
 ```
 
-`scripts/start.ps1` now runs clinical build, all-PDF indexing, the combined strict check and HCP seeding before starting Streamlit. `-PrepareOnly` performs those steps without launching another UI. Plain `doctor --strict` continues to check clinical chat readiness; add `--all-documents` for full-corpus testing.
+`scripts/start.ps1` runs clinical build, all-PDF indexing, the combined strict check and HCP seeding before starting Streamlit. `-PrepareOnly` performs those steps without launching another UI. Plain `doctor --strict` checks the configured Chat corpus; `--all-documents` additionally requires both indexes.
 
 The expected current readiness is:
 
@@ -64,7 +66,12 @@ Equivalent CLI examples:
 .\.venv\Scripts\python.exe -m camzyos.cli inspect --query "risk management"
 ```
 
-The clinical answer path never reads this index. Source-specific inspection can therefore exercise a US document without making it evidence for German answers. `clinical_evidence` is always false for inspection passages, including passages from the active EMA PDF. Account-owned sources are filtered to the selected HCP's explicit account mapping; CLI inspection defaults to public/general scope. The app remains a local synthetic-profile prototype, without production authentication/reviewer roles.
+Chat reads this index in `all_documents` mode and applies [GR_06 through GR_09](guardrails.md)
+before retrieving answer evidence. Source/page approval, dates, HCP audience and DE/EU market scope
+currently permit 84 passages from two documents. All 432 passages remain indexed for reviewer
+inspection. The `clinical_evidence: false` flag records extraction origin, not source approval.
+Account-owned content also requires the selected HCP's explicit account mapping. Inspection commands
+return passages without generating answers or approving them.
 
 ## Run the corpus smoke test
 
@@ -74,7 +81,11 @@ The clinical answer path never reads this index. Source-specific inspection can 
 .\.venv\Scripts\python.exe -m ruff check .
 ```
 
-`evals.corpus` performs a live source-scoped lookup from each of the eight PDFs and checks clinical retrieval remains within its eligible IDs. It records the pinned source/passages, actual results, reference ranks and errors in a timestamped JSONL report. It makes embedding calls, not answer-generation or RAGAS judge calls. It pins source snapshots across the run and retains each failure.
+`evals.corpus` performs a source-scoped inspection lookup for each PDF and checks the normal chat
+retriever. Eligible references should be found; excluded references must remain excluded. It also
+checks clinical benchmark isolation. It records actual results and reference ranks
+in a timestamped JSONL report. It makes embedding and relevance-reranking calls, but no final answer
+generation or RAGAS judge calls. It pins source snapshots and retains each failure.
 
 The first completed live run found each sampled passage at rank 1 in its own source and passed clinical-isolation checks for all eight PDFs. This is an exact-passage infrastructure smoke test, not a clinical correctness or unseen-question benchmark. The 20 clinical passages were compared before and after indexing and remained identical.
 

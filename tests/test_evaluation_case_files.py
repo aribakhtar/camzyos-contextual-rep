@@ -155,10 +155,14 @@ def test_cli_answer_failures_are_unsuccessful_without_ragas(env, monkeypatch, tm
 
 
 def test_answer_run_keeps_account_scope_and_disables_memory_and_search(env):
+    env.cfg["retrieval_scope"] = "all_documents"
     record = run_case(env, ragas=True)
     assert record["successful"] is True
+    assert record["retrieval_scope"] == "clinical"
+    assert env.cfg["retrieval_scope"] == "all_documents"
     assert env.store.chunks.call_args_list == [call("ACCOUNT_A"), call("ACCOUNT_A")]
-    env.ask.assert_called_once_with(env.cfg, env.store, env.tables, "a@example.test", CASE["question"],
+    env.ask.assert_called_once_with({**env.cfg, "retrieval_scope": "clinical"}, env.store, env.tables,
+                                    "a@example.test", CASE["question"],
                                     persist=False, search=False, mode="contextual")
     env.store.remember.assert_not_called()
 

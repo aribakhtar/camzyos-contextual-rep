@@ -2,7 +2,8 @@
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 
 def now():
@@ -23,6 +24,9 @@ class Store:
               CREATE TABLE IF NOT EXISTS deliveries(hcp_id TEXT, version_id TEXT, created TEXT,
                 PRIMARY KEY(hcp_id, version_id));
               CREATE TABLE IF NOT EXISTS conversation_summaries(hcp_id TEXT PRIMARY KEY, updated TEXT, info TEXT);
+              CREATE TABLE IF NOT EXISTS policy_audit(id TEXT PRIMARY KEY, hcp_id TEXT, created TEXT, info TEXT);
+              CREATE TABLE IF NOT EXISTS escalation_cases(id TEXT PRIMARY KEY, audit_id TEXT,
+                hcp_id TEXT, target TEXT, created TEXT, due_at TEXT, status TEXT, info TEXT);
             """)
             if "source_snapshot" not in {r["name"] for r in db.execute("PRAGMA table_info(versions)")}:
                 db.execute("ALTER TABLE versions ADD COLUMN source_snapshot TEXT")
@@ -160,6 +164,48 @@ class Store:
             with self.db() as db:
                 db.execute("INSERT INTO chats(hcp_id,created,info) VALUES(?,?,?)",
                            (hcp_id, now(), json.dumps(record, ensure_ascii=False)))
+
+    def record_policy(self, identity, email, question, result):
+        """GR_16 audit and local escalations are atomic, separate from optional chat memory."""
+        stamp = now()
+        audit_id = result["message_id"]
+        rules = list(dict.fromkeys([*result.get("rule_ids", []), "GR_16"]))
+        record = {"id": audit_id, "user": identity, "email": email, "question": question,
+                  "timestamp": stamp, "decision": result["decision"], "rule_ids": rules,
+                  "sources": [{"id": c["id"], "version_id": c["version_id"], "page": c.get("page"),
+                               "source_id": c["source"]["id"]} for c in result.get("citations", [])],
+                  "retrieved_source_ids": [c["id"] for c in result.get("retrieved_evidence", [])]}
+        targets = []
+        draft = result.get("handoff")
+        if draft:
+            targets.append((draft["destination"], draft["rule_id"], draft["summary"]))
+        if result.get("review_required"):
+            targets.append((result["review_target"], "GR_10", "Medical review requested: " + question))
+        cases = []
+        with self.db() as db:
+            db.execute("INSERT INTO policy_audit VALUES(?,?,?,?)",
+                       (audit_id, identity, stamp, json.dumps(record, ensure_ascii=False)))
+            for target, rule, summary in targets:
+                case_id = str(uuid4())
+                due = (datetime.fromisoformat(stamp) + timedelta(hours=24)).isoformat() if rule == "GR_02" else None
+                case = {"case_id": case_id, "audit_id": audit_id, "rule_id": rule, "target": target,
+                        "status": "pending_external_submission", "logged_at": stamp, "due_at": due,
+                        "summary": summary, "question": question, "external_case_id": None}
+                db.execute("INSERT INTO escalation_cases VALUES(?,?,?,?,?,?,?,?)",
+                           (case_id, audit_id, identity, target, stamp, due, case["status"],
+                            json.dumps(case, ensure_ascii=False)))
+                cases.append(case)
+        return {"id": audit_id, "persisted": True, "timestamp": stamp, "rule_ids": rules}, cases
+
+    def policy_records(self, identity):
+        with self.db() as db:
+            rows = db.execute("SELECT info FROM policy_audit WHERE hcp_id=? ORDER BY created", (identity,)).fetchall()
+        return [json.loads(r["info"]) for r in rows]
+
+    def escalations(self, identity):
+        with self.db() as db:
+            rows = db.execute("SELECT info FROM escalation_cases WHERE hcp_id=? ORDER BY created", (identity,)).fetchall()
+        return [json.loads(r["info"]) for r in rows]
 
     def delete_history(self, hcp_id):
         with self.db() as db:

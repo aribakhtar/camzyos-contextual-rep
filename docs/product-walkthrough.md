@@ -1,6 +1,6 @@
 # Product explanation and Streamlit walkthrough
 
-Checked against the running app and code on 30 October 2026.
+Retrieval scope updated on 6 November 2026. See [full-document RAG](rag.md).
 
 For exact HCP emails, contrasting personalities, copyable questions and scored comparison commands,
 use the [HCP demo scenarios](hcp-demo-scenarios.md).
@@ -9,7 +9,7 @@ use the [HCP demo scenarios](hcp-demo-scenarios.md).
 
 “This is a CAMZYOS information assistant for healthcare professionals in Germany. We prepare and
 review document evidence before chat starts. When an HCP asks a question, the app checks the request,
-retrieves relevant eligible passages, and uses that HCP's preferences and history to shape the answer.
+retrieves eligible passages from the eight-PDF index, and uses that HCP's preferences and history to shape the answer.
 It checks the answer against its citations before displaying it. When evidence or policy does not
 support an answer, it explains the limit and can prepare a human follow-up draft.”
 
@@ -20,28 +20,29 @@ prototype review, not sponsor compliance approval. The email field selects a dem
 
 1. **Prepare the documents before questions arrive.** The preparation script parses PDFs, cleans
    repeated margins, splits text into passages, adds source/page/version metadata, creates embeddings
-   and checks the Neo4j indexes. Unchanged embeddings are reused. New source versions stay staged
-   until review and activation. Only eligible active passages enter clinical retrieval.
+   and checks the Neo4j indexes. Unchanged embeddings are reused. Chat searches every prepared PDF.
+   The separate clinical benchmark retains its review and activation workflow.
 2. **Prepare HCP context separately.** The workbook provides profiles, personality/preferences and
    dated interactions. The seed command imports context into separate Graphiti groups for each HCP.
    The workbook's placeholder clinical text is never medical evidence.
 3. **Open a ready application and select the HCP.** Streamlit resolves the email to a profile. A known
-   HCP gets their own context; an unknown email gets general eligible-content mode. The question box
-   requires the model key and a complete clinical index. The key is entered locally in `.env`.
+   HCP gets their own context; an unknown email gets general document answers. The question box
+   requires the model key and a complete all-PDF index. The key is entered locally in `.env`.
 4. **Receive the question and its conversation context.** Each new message gets an ID and timestamp.
    Earlier messages remain in the live transcript. When model input approaches its budget, the app
    summarizes older messages for the model while preserving the original transcript.
 5. **Check the request.** Rules and model classification identify reports of adverse events, patient
    advice, off-label requests, comparisons, privacy requests, complaints and explicit human requests.
-   A reported event takes the PV route. Ambiguous scope can trigger clarification. Historical-change
-   questions disclose that a reviewed before/after comparison is currently unavailable.
+   A reported event takes the PV route. Ambiguous scope can trigger clarification. Update questions
+   use retrieval normally; current information alone cannot substantiate before/after claims.
 6. **Rewrite an allowed question for retrieval.** The classifier uses the new question and its working
-   conversation context to produce **one** medical search query. It is instructed to omit identifiers.
-   This is conversation-aware rewriting; a general multi-query planner is not implemented.
+   conversation context to produce a focused medical search query without identifiers. Explicitly
+   multipart questions can produce up to three queries, one per requested part; selected passages
+   are interleaved to preserve topic coverage.
 7. **Retrieve and rank evidence.** Neo4j vector search finds similar passages and BM25 finds keyword
-   matches. The app combines their rankings, forms up to 20 eligible candidates and uses an LLM
-   reranker to select up to six passages. Source eligibility is enforced before and after retrieval.
-   A failed reranker keeps hybrid order with a warning; an unavailable clinical vector index blocks
+   matches in eligible passages from the eight-PDF index. The app combines their rankings, forms up to 20 candidates and uses an LLM
+   reranker to select up to six passages. Source provenance and account access are rechecked after retrieval.
+   A failed reranker invokes GR_15 confidence review; an unavailable all-PDF vector index blocks
    answering rather than silently switching to keyword-only evidence.
 8. **Assemble the answer context.** The response model receives fixed policy instructions, the current
    question, the selected HCP's workbook context, relevant Graphiti memory, conversation/summary, and
@@ -49,24 +50,24 @@ prototype review, not sponsor compliance approval. The email field selects a dem
    is not a personality prompt cached once per HCP; context is supplied with each request.
 9. **Generate and check the draft.** Clinical statements need allowed passage IDs. A per-claim audit
    examines the cited evidence, checks exact proof excerpts and separates population-specific claims.
-   The existing verifier also checks support, personal context and scope. At most one correction is
-   attempted. A continued failure withholds the clinical answer and gives a verification handoff.
+   Separate reviews check support, factual personal context, scope and HCP personality adherence. At most one correction is
+   attempted. A final review can retain unchanged proven claims only if the result still answers the
+   full question. Continued failure invokes GR_15 clarification or Rep/MSL escalation.
 10. **Show and optionally retain the result.** Chat displays the answer, citations, used personal
-    context, limits or a handoff draft. Saving is off by default. With saving enabled, new turns and
+    context, limits or a handoff draft. GR_16 always saves the audit and local escalation records. Chat memory is off by default. With saving enabled, new turns and
     working summaries can persist locally; supported answer paths can retain user statements and
     source provenance in Graphiti. Generated medical claims do not become clinical memory facts.
 
 ```mermaid
 flowchart TD
-    D[Prepare and review document passages] --> R[Ready clinical index]
+    D[Prepare all eight PDFs] --> R[Ready all-PDF index]
     W[Workbook and isolated HCP memory] --> H[Select HCP]
     R --> Q[Question plus own conversation]
     H --> Q
     Q --> P[Rules, readiness and intent classification]
     P -->|Report or boundary request| X[Explain limit and prepare handoff draft]
     P -->|Uncertain scope| C[Ask for clarification]
-    P -->|Historical change without comparison| X
-    P -->|Allowed| T[One rewritten retrieval query]
+    P -->|Allowed| T[Focused queries for requested topics]
     T --> E[Eligible vector and keyword retrieval]
     E --> K[Combine ranks and rerank to six passages]
     K --> G[Generate with HCP context and conversation]
@@ -76,7 +77,7 @@ flowchart TD
     A -->|First failure| F[One correction]
     F --> A
     A -->|Still fails| X
-    O --> S[Keep live transcript; persist only with opt-in]
+    O --> S[Save mandatory audit; chat memory is opt-in]
     X --> S
     C --> S
 ```
@@ -85,10 +86,11 @@ HCP memory answers “what matters to this person?” Document evidence answers 
 Conversation supplies references such as “that” or “since our last discussion.” These inputs have
 different roles: prior assistant statements and HCP preferences cannot establish clinical facts.
 
-The active clinical corpus currently contains **20 eligible EMA SmPC passages**. A separate inspection
-index covers **all eight PDFs, 432 passages and 203 pages**. Inspection results include staged/excluded
-material and do not feed the chatbot. Neo4j stores both sets of vectors separately and the Graphiti
-memory graph; SQLite stores source/version records and consented local conversations. Graphiti does
+The index contains **eight PDFs, 432 passages and 203 pages**. Under the configured approval,
+page, audience and market rules, **84 passages from two sources** can support German HCP answers.
+US, public and unapproved historical documents remain indexed for inspection. The separate clinical
+benchmark corpus contains **20 eligible EMA SmPC passages**. Neo4j stores both sets of vectors and the Graphiti
+memory graph; SQLite stores source/version records and consented conversations, mandatory policy audits and local escalation records. Graphiti does
 not manage the prompt window, plan all queries or orchestrate the application. Python does; LangGraph
 is not used as the application orchestrator.
 
@@ -119,7 +121,7 @@ The other views are testing/reviewer tools; they are not required steps before e
 | **Clear this conversation** | Clears the selected live conversation and its working summary. It leaves saved history and Graphiti memory intact. |
 | **Forget saved chat memory** | Deletes selected-HCP saved conversations and attempts to clear that HCP's Graphiti group. It also clears the live conversation. The supplied workbook profile/history stays available. A later explicit seed can reimport workbook memory. |
 | **View** | Switch between the five panels. |
-| **Retrieval ready: 20/20 passages indexed** | Confirms the current eligible clinical corpus is indexed. The count can change after reviewed source updates; “ready” and completeness are what matter. |
+| **Retrieval ready: 8 PDFs · 432/432 passages indexed** | Confirms the complete Chat library is indexed. Counts reflect the bundled snapshot and can change when PDFs are updated. |
 
 “Clear” and “Forget” have different effects. During a demonstration, clearing your isolated test
 conversation is usually sufficient. With saving off, ending the session or restarting the server can
@@ -171,7 +173,7 @@ model and current corpus where applicable:
 | Column | Inputs beyond the question | Interpretation |
 |---|---|---|
 | **Generic** | No retrieved documents or HCP personalization | Unverified model baseline, for comparison only. |
-| **Documents** | Retrieved eligible evidence | Shows document-grounded behavior without personal response context. |
+| **Documents** | Eligible passages from the eight-PDF index | Shows document-grounded behavior without personal response context. |
 | **Contextual** | Eligible evidence plus selected HCP workbook/Graphiti context | Shows how the same supported information is presented with personalization. |
 
 These are fresh requests, not continuations of the live Chat transcript. Runs do not save memory and
@@ -206,8 +208,8 @@ runners and report files; there is no custom-case upload or full-suite button on
 
 For a walkthrough, start with the two readiness indicators:
 
-- **Clinical readiness** concerns the eligible passages the chatbot can use.
-- **All-PDF index ready** concerns the broader inspection corpus for all eight PDFs.
+- **Chat readiness** concerns all prepared PDFs that normal Chat and Compare search.
+- **Clinical benchmark readiness** concerns the older corpus pinned by evaluation cases.
 
 Use **PDF to inspect**, **Search PDF text for testing**, and **Search all-PDF testing index** to inspect
 extracted passages across files. The result includes the PDF/page and layout-review flag. It is an
@@ -218,13 +220,13 @@ The remaining controls change prepared source state and belong to the reviewer/s
 | Control | Action |
 |---|---|
 | **Build eligible clinical document index** | Run the bundled clinical preparation/indexing workflow. |
-| **Build all-PDF testing index** | Prepare or refresh the separate broad inspection corpus. |
+| **Build all-PDF library index** | Prepare or refresh the complete Chat library. |
 | **Source** / **Version** | Select a source and inspect versions, hashes, creation dates and extraction audits. |
 | **Stage a replacement PDF** | Uploading automatically starts parsing, chunking and indexing; the new version stays staged. |
 | **Process / index source** | Process or retry the selected source. |
 | **Check publisher for an updated PDF** | Fetch/process available publisher content on demand. It does not prove what changed clinically. |
 | **Review note** and review checkbox, then **Activate reviewed version** | Record the review and activate only after eligibility/index checks. |
-| **Withdraw this version** | Exclude that version from new answers. |
+| **Withdraw this version** | Exclude that version from the reviewed clinical benchmark. |
 | **Sync active document embeddings to Neo4j** | Repair/synchronize the active clinical index. |
 
 Simply showing the page does not require pressing any build/activate/withdraw controls. Source-version
